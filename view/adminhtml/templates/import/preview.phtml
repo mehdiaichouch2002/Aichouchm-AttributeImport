@@ -1,0 +1,44 @@
+<?php
+/**
+ * @var \Aichouchm\AttributeImport\Block\Adminhtml\Import\Preview $block
+ */
+$rows   = $block->getData('rows');
+$errors = $block->getData('errors');
+?>
+
+<?php if (!empty($errors)): ?>
+    <div class="messages">
+        <?php foreach ($errors as $error): ?>
+            <div class="message message-error"><div><?= $block->escapeHtml($error) ?></div></div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($rows) && count($rows) > 1): ?>
+    <div class="admin__data-grid-outer-wrap">
+        <table class="data-grid admin__table-primary">
+            <thead>
+                <tr>
+                    <?php foreach ($rows[0] as $header): ?>
+                        <th class="data-grid-th"><?= $block->escapeHtml($block->formatHeader($header)) ?></th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach (array_slice($rows, 1) as $rowIndex => $row): ?>
+                    <tr class="<?= $rowIndex % 2 === 0 ? '_even-row' : '_odd-row' ?>">
+                        <?php foreach ($row as $cell): ?>
+                            <td><?= $block->escapeHtml($cell) ?></td>
+                        <?php endforeach; ?>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <p class="note">
+        <?= $block->escapeHtml(__('%1 data rows found.', count($rows) - 1)) ?>
+        <?php if (empty($errors)): ?>
+            <strong><?= $block->escapeHtml(__('All rows are valid. You can proceed with the import.')) ?></strong>
+        <?php endif; ?>
+    </p>
+<?php endif; ?>

@@ -1,0 +1,126 @@
+<?php
+/**
+ * @var \Aichouchm\AttributeImport\Block\Adminhtml\Import\Form\Before $block
+ * @var \Magento\Framework\View\Helper\SecureHtmlRenderer $secureRenderer
+ */
+$previewUrl = $block->getPreviewUrl();
+$processUrl = $block->getProcessUrl();
+?>
+
+<div id="import-notification" class="message hidden"></div>
+<div id="preview-section">
+    <h2 id="validation-heading" class="hidden"><?= $block->escapeHtml(__('Validation Results')) ?></h2>
+    <div id="preview-container"></div>
+</div>
+
+<?php $js = <<<JS
+require(['jquery'], function ($) {
+    'use strict';
+
+    window.attributeImport = {
+
+        // ── Check Data ──────────────────────────────────────────────────────
+        checkData: function () {
+            var formData = new FormData($('#attribute-import-form')[0]);
+
+            $.ajax({
+                url:          '$previewUrl',
+                type:         'POST',
+                data:         formData,
+                contentType:  false,
+                processData:  false,
+                showLoader:   true,
+                success: function (response) {
+                    if (!response.success) {
+                        attributeImport.showMessage(response.message, 'error');
+                        return;
+                    }
+                    $('#preview-container').html(response.data);
+                    $('#validation-heading').removeClass('hidden');
+                    attributeImport.hideMessage();
+
+                    if (response.is_valid) {
+                        attributeImport.enableImport();
+                    } else {
+                        attributeImport.resetButtons();
+                    }
+                },
+                error: function () {
+                    attributeImport.showMessage('$block->escapeJs(__('Server error. Please try again.'))', 'error');
+                }
+            });
+        },
+
+        // ── Submit import ───────────────────────────────────────────────────
+        submit: function () {
+            var formData = new FormData($('#attribute-import-form')[0]);
+
+            $.ajax({
+                url:          '$processUrl',
+                type:         'POST',
+                data:         formData,
+                contentType:  false,
+                processData:  false,
+                showLoader:   true,
+                success: function (response) {
+                    attributeImport.resetAfterSubmit();
+
+                    if (response.success) {
+                        var msg = Array.isArray(response.messages) ? response.messages.join('<br>') : response.messages;
+                        if (response.skipped > 0) {
+                            msg += '<br><em>' + response.skipped + ' option(s) skipped (already exist). See log for details.</em>';
+                        }
+                        attributeImport.showMessage(msg, 'success');
+                    } else {
+                        var errors = Array.isArray(response.messages) ? response.messages.join('<br>') : response.messages;
+                        attributeImport.showMessage(errors, 'error');
+                    }
+                },
+                error: function () {
+                    attributeImport.showMessage('$block->escapeJs(__('Server error. Please try again.'))', 'error');
+                }
+            });
+        },
+
+        // ── UI helpers ──────────────────────────────────────────────────────
+        onAttributeChange: function () { this.resetState(); },
+        onFileChange:      function () { this.resetState(); },
+
+        resetState: function () {
+            this.resetButtons();
+            $('#validation-heading').addClass('hidden');
+            $('#preview-container').html('');
+            this.hideMessage();
+        },
+
+        resetAfterSubmit: function () {
+            this.resetState();
+            $('#import_file').val('');
+            $('#attribute_code').prop('selectedIndex', 0).trigger('change');
+        },
+
+        enableImport: function () {
+            $('#import-button').removeClass('disabled');
+            $('#check-data-button').addClass('disabled');
+        },
+
+        resetButtons: function () {
+            $('#import-button').addClass('disabled');
+            $('#check-data-button').removeClass('disabled');
+        },
+
+        showMessage: function (text, type) {
+            var el = $('#import-notification');
+            el.removeClass('message-error message-success hidden')
+              .addClass(type === 'success' ? 'message-success' : 'message-error')
+              .html(text);
+        },
+
+        hideMessage: function () {
+            $('#import-notification').addClass('hidden').html('');
+        }
+    };
+});
+JS;
+?>
+<?= /* @noEscape */ $secureRenderer->renderTag('script', [], $js, false) ?>

@@ -1,0 +1,44 @@
+<?php
+/**
+ * @var \Aichouchm\AttributeImport\Block\Adminhtml\Log $block
+ */
+$lines = $block->getLogLines(300);
+?>
+
+<div class="admin__data-grid-wrap">
+    <div style="margin-bottom: 1rem;">
+        <a href="<?= $block->escapeUrl($block->getImportUrl()) ?>" class="action-default">
+            &larr; <?= $block->escapeHtml(__('Back to Import')) ?>
+        </a>
+    </div>
+
+    <?php if (empty($lines)): ?>
+        <p class="message message-notice">
+            <?= $block->escapeHtml(__('No log entries found. The log file is either empty or does not exist yet.')) ?>
+        </p>
+    <?php else: ?>
+        <p class="note"><?= $block->escapeHtml(__('Showing last %1 log entries, newest first.', count($lines))) ?></p>
+        <div style="font-family: monospace; font-size: 0.85rem; background: #1a1a1a; color: #d4d4d4;
+                    padding: 1rem; border-radius: 4px; max-height: 600px; overflow-y: auto;">
+            <?php foreach ($lines as $line): ?>
+                <?php
+                $trimmed = trim($line);
+                if ($trimmed === '') continue;
+
+                // Colour-code by log level
+                $colour = '#d4d4d4'; // default
+                if (stripos($trimmed, '.ERROR') !== false || stripos($trimmed, '] error') !== false) {
+                    $colour = '#f88585';
+                } elseif (stripos($trimmed, '.WARNING') !== false || stripos($trimmed, '] warning') !== false) {
+                    $colour = '#ffd580';
+                } elseif (stripos($trimmed, '.INFO') !== false || stripos($trimmed, '] info') !== false) {
+                    $colour = '#87d7a0';
+                }
+                ?>
+                <div style="color: <?= $block->escapeHtmlAttr($colour) ?>; border-bottom: 1px solid #2d2d2d; padding: 2px 0;">
+                    <?= $block->escapeHtml($trimmed) ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>

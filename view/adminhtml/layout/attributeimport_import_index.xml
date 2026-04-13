@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <head>
+        <title>Import Attribute Options</title>
+    </head>
+    <body>
+        <referenceContainer name="content">
+            <!-- Form container block (toolbar buttons) -->
+            <block class="Aichouchm\AttributeImport\Block\Adminhtml\Import\Form"
+                   name="attributeimport.form"/>
+
+            <!-- Preview result area — rendered empty, filled by AJAX -->
+            <block class="Aichouchm\AttributeImport\Block\Adminhtml\Import\Preview"
+                   name="attributeimport.preview"
+                   template="Aichouchm_AttributeImport::import/preview.phtml">
+                <arguments>
+                    <argument name="rows"   xsi:type="array"/>
+                    <argument name="errors" xsi:type="array"/>
+                </arguments>
+            </block>
+
+            <!-- JS behaviour + AJAX URLs injected as inline script -->
+            <block class="Aichouchm\AttributeImport\Block\Adminhtml\Import\Form\Before"
+                   name="attributeimport.before"
+                   template="Aichouchm_AttributeImport::import/form/before.phtml"/>
+        </referenceContainer>
+    </body>
+</page>

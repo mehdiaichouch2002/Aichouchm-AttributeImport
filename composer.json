@@ -1,0 +1,38 @@
+{
+    "name": "aichouchm/magento2-module-attribute-import",
+    "description": "Magento 2 module for bulk importing product attribute options from CSV files via the admin panel",
+    "type": "magento2-module",
+    "version": "1.0.0",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mehdi Aichouch",
+            "email": "aichouchm@example.com"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "magento/framework": ">=103.0",
+        "magento/module-backend": "*",
+        "magento/module-eav": "*",
+        "magento/module-catalog": "*",
+        "magento/module-store": "*",
+        "magento/module-swatches": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "files": [
+            "registration.php"
+        ],
+        "psr-4": {
+            "Aichouchm\\AttributeImport\\": ""
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Aichouchm\\AttributeImport\\Test\\": "Test/"
+        }
+    }
+}

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Backend:etc/menu.xsd">
+    <menu>
+        <add id="Aichouchm_AttributeImport::import_attributes"
+             title="Import Attributes"
+             translate="title"
+             module="Aichouchm_AttributeImport"
+             sortOrder="60"
+             parent="Magento_Backend::stores_attributes"
+             action="attributeimport/import/index"
+             resource="Aichouchm_AttributeImport::import_attributes"/>
+    </menu>
+</config>
