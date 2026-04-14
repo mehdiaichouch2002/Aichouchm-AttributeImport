@@ -9,9 +9,6 @@ use Magento\Backend\App\Action\Context;
 use Magento\Framework\View\Result\Page;
 use Magento\Framework\View\Result\PageFactory;
 
-/**
- * Renders the log viewer page (Stores → Attributes → Import Attributes → View Log).
- */
 class Log extends Action
 {
     public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';

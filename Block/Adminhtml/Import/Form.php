@@ -6,13 +6,6 @@ namespace Aichouchm\AttributeImport\Block\Adminhtml\Import;
 
 use Magento\Backend\Block\Widget\Form\Container;
 
-/**
- * Container block for the import form.
- *
- * Manages the toolbar buttons: removes the default Back/Reset buttons
- * and replaces Save with Import (disabled until "Check Data" passes).
- * A secondary "Check Data" button triggers the AJAX preview flow.
- */
 class Form extends Container
 {
     protected $_mode = 'form';

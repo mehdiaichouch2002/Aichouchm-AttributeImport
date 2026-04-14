@@ -8,12 +8,6 @@ use Magento\Backend\Block\Template;
 use Magento\Framework\App\Filesystem\DirectoryList;
 use Magento\Framework\Filesystem;
 
-/**
- * Renders the last N lines of the attribute import log file.
- *
- * The log file path is injected via di.xml so it can be overridden without
- * touching the class. Default: var/log/attribute_import.log.
- */
 class Log extends Template
 {
     private const DEFAULT_LINES = 200;
@@ -27,11 +21,6 @@ class Log extends Template
         parent::__construct($context, $data);
     }
 
-    /**
-     * Returns the last $limit lines from the log file, newest first.
-     *
-     * @return string[]
-     */
     public function getLogLines(int $limit = self::DEFAULT_LINES): array
     {
         try {

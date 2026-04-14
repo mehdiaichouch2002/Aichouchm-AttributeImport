@@ -13,13 +13,6 @@ use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Psr\Log\LoggerInterface;
 
-/**
- * AJAX endpoint: execute the actual import and return a result summary.
- *
- * The "Import" button is disabled in the UI until "Check Data" passes, so by
- * the time this controller is called the CSV has already been validated.
- * The service re-validates internally before writing — defence in depth.
- */
 class Process extends Action implements HttpPostActionInterface
 {
     public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
@@ -28,7 +21,7 @@ class Process extends Action implements HttpPostActionInterface
         Context                              $context,
         private readonly ImportServiceInterface $importService,
         private readonly JsonFactory         $resultJsonFactory,
-        private readonly LoggerInterface     $logger  // injected as named virtual type via di.xml
+        private readonly LoggerInterface     $logger
     ) {
         parent::__construct($context);
     }

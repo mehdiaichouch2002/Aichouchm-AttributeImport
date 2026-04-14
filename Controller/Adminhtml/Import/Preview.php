@@ -14,13 +14,6 @@ use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\View\LayoutFactory;
 
-/**
- * AJAX endpoint: validate the uploaded CSV and return an HTML preview table.
- *
- * Called by the "Check Data" button. Does NOT write to the database.
- * On success: returns preview HTML + is_valid flag.
- * On failure: returns error messages for display.
- */
 class Preview extends Action implements HttpPostActionInterface
 {
     public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';

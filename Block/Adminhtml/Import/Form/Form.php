@@ -10,9 +10,6 @@ use Magento\Backend\Block\Widget\Form\Generic;
 use Magento\Framework\Data\FormFactory;
 use Magento\Framework\Registry;
 
-/**
- * Renders the actual form fields: attribute selector and CSV file upload.
- */
 class Form extends Generic
 {
     public const FIELD_NAME_SOURCE_FILE = 'import_file';
