@@ -33,7 +33,7 @@ This module adds a dedicated page under **Stores → Attributes → Import Attri
 ### Via Composer (recommended)
 
 ```bash
-composer require aichouchm/magento2-module-attribute-import
+composer require aichouchm/magento2-module-attribute-import:dev-main
 bin/magento module:enable Aichouchm_AttributeImport
 bin/magento setup:upgrade
 bin/magento cache:flush
