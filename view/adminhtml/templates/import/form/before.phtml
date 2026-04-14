@@ -31,9 +31,10 @@ require(['jquery'], function ($) {
                 contentType:  false,
                 processData:  false,
                 showLoader:   true,
+                dataType:     'json',
                 success: function (response) {
                     if (!response.success) {
-                        attributeImport.showMessage(response.message, 'error');
+                        attributeImport.showMessage(response.message || '$serverError', 'error');
                         return;
                     }
                     $('#preview-container').html(response.data);
@@ -64,6 +65,7 @@ require(['jquery'], function ($) {
                 contentType:  false,
                 processData:  false,
                 showLoader:   true,
+                dataType:     'json',
                 success: function (response) {
                     attributeImport.resetAfterSubmit();
 
