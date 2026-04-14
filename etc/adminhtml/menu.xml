@@ -6,7 +6,7 @@
              title="Import Attributes"
              translate="title"
              module="Aichouchm_AttributeImport"
-             sortOrder="60"
+             sortOrder="70"
              parent="Magento_Backend::stores_attributes"
              action="attributeimport/import/index"
              resource="Aichouchm_AttributeImport::import_attributes"/>
