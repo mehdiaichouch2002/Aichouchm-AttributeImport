@@ -48,8 +48,8 @@ require(['jquery'], function ($) {
                         attributeImport.resetButtons();
                     }
                 },
-                error: function (jqXHR) {
-                    attributeImport.showMessage('DEBUG: status=' + jqXHR.status + ' resp=' + jqXHR.responseText.substring(0, 200), 'error');
+                error: function () {
+                    attributeImport.showMessage('$serverError', 'error');
                 }
             });
         },
