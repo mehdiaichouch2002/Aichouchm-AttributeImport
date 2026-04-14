@@ -38,11 +38,12 @@ require(['jquery'], function ($) {
                     }
                     $('#preview-container').html(response.data);
                     $('#validation-heading').removeClass('hidden');
-                    attributeImport.hideMessage();
 
                     if (response.is_valid) {
+                        attributeImport.hideMessage();
                         attributeImport.enableImport();
                     } else {
+                        attributeImport.showMessage('Validation failed. Please fix the errors shown below.', 'error');
                         attributeImport.resetButtons();
                     }
                 },
