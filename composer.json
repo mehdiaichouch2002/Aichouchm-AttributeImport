@@ -2,7 +2,6 @@
     "name": "aichouchm/magento2-module-attribute-import",
     "description": "Magento 2 module for bulk importing product attribute options from CSV files via the admin panel",
     "type": "magento2-module",
-    "version": "1.0.0",
     "license": "MIT",
     "authors": [
         {
