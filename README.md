@@ -32,8 +32,17 @@ This module adds a dedicated page under **Stores → Attributes → Import Attri
 
 ### Via Composer (recommended)
 
+Ensure your Magento project's `composer.json` has:
+
+```json
+"minimum-stability": "dev",
+"prefer-stable": true
+```
+
+Then:
+
 ```bash
-composer require aichouchm/magento2-module-attribute-import:dev-main
+composer require aichouchm/magento2-module-attribute-import
 bin/magento module:enable Aichouchm_AttributeImport
 bin/magento setup:upgrade
 bin/magento cache:flush
@@ -52,7 +61,7 @@ Add to the root `composer.json` of your Magento project:
 Then:
 
 ```bash
-composer require aichouchm/magento2-module-attribute-import:@dev
+composer require aichouchm/magento2-module-attribute-import
 bin/magento module:enable Aichouchm_AttributeImport
 bin/magento setup:upgrade
 bin/magento cache:flush
@@ -61,7 +70,7 @@ bin/magento cache:flush
 ### If you use the Robo dev environment
 
 ```bash
-robo composer require aichouchm/magento2-module-attribute-import:@dev
+robo composer require aichouchm/magento2-module-attribute-import
 robo magento module:enable Aichouchm_AttributeImport
 robo magento setup:upgrade
 robo magento cache:flush
