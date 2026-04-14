@@ -21,6 +21,10 @@
     color: #006400;
 }
 
+#base_fieldset > .messages {
+    display: none !important;
+}
+
 #preview-section {
     margin-top: 2rem;
 }
