@@ -7,14 +7,14 @@
     line-height: 1.5;
 }
 
-#import-notification.message-error {
+#import-notification.import-error {
     display: block !important;
     background: #fdf0f0;
     border-left: 4px solid #e22626;
     color: #b30000;
 }
 
-#import-notification.message-success {
+#import-notification.import-success {
     display: block !important;
     background: #f0f9f0;
     border-left: 4px solid #006400;

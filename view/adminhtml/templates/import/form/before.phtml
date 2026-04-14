@@ -115,8 +115,8 @@ require(['jquery'], function ($) {
 
         showMessage: function (text, type) {
             var el = $('#import-notification');
-            el.removeClass('message-error message-success hidden')
-              .addClass(type === 'success' ? 'message-success' : 'message-error')
+            el.removeClass('import-error import-success hidden')
+              .addClass(type === 'success' ? 'import-success' : 'import-error')
               .html('<span>' + text + '</span>');
         },
 
