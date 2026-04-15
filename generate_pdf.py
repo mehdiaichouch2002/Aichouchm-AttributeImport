@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-Aichouchm_AttributeImport — Technical Strategy & Decision Record
-Professional PDF layout using ReportLab canvas callbacks + Table wrappers.
+Aichouchm_AttributeImport — Technical Reference Document
+Complete class-by-class documentation in workflow order.
 """
 
-import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
@@ -90,8 +89,7 @@ def on_cover(c, doc):
     c.rect(0, 3.2*cm, PAGE_W, 1.5*mm, fill=1, stroke=0)
     c.setFont("Helvetica", 8)
     c.setFillColor(GREY)
-    c.drawCentredString(PAGE_W / 2, 1.3*cm,
-        "Generated %s  |  MIT License  |  Mehdi Aichouch" % datetime.date.today().strftime("%B %d, %Y"))
+    c.drawCentredString(PAGE_W / 2, 1.3*cm, "MIT License  |  Mehdi Aichouch")
     c.restoreState()
 
 def on_page(c, doc):
@@ -103,7 +101,7 @@ def on_page(c, doc):
     c.drawString(MARGIN, PAGE_H - 1.2*cm, "Aichouchm_AttributeImport")
     c.setFont("Helvetica", 8)
     c.setFillColor(GREY)
-    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 1.2*cm, "Technical Strategy & Decision Record")
+    c.drawRightString(PAGE_W - MARGIN, PAGE_H - 1.2*cm, "Technical Reference")
     c.setFillColor(GREY_BD)
     c.rect(MARGIN, 1.5*cm, BODY_W, 0.5*mm, fill=1, stroke=0)
     c.setFont("Helvetica", 8)
@@ -151,9 +149,20 @@ def bullet(text):
     return Paragraph("&#8226;  " + text, S_BULLET)
 
 def code(text):
-    pre = Preformatted(text.strip("\n"), S_MONO)
-    return _wrap(pre, bg=CODE_BG, line_color=BLUE, line_width=3,
-                 top_pad=10, bot_pad=10, left_pad=14, right_pad=10)
+    """Return one wrapped block, or a list of blocks if too tall for a single page."""
+    MAX_LINES = 48
+    lines = text.strip("\n").split("\n")
+    if len(lines) <= MAX_LINES:
+        pre = Preformatted(text.strip("\n"), S_MONO)
+        return _wrap(pre, bg=CODE_BG, line_color=BLUE, line_width=3,
+                     top_pad=10, bot_pad=10, left_pad=14, right_pad=10)
+    chunks = []
+    for i in range(0, len(lines), MAX_LINES):
+        chunk = "\n".join(lines[i:i + MAX_LINES])
+        pre = Preformatted(chunk, S_MONO)
+        chunks.append(_wrap(pre, bg=CODE_BG, line_color=BLUE, line_width=3,
+                            top_pad=10, bot_pad=10, left_pad=14, right_pad=10))
+    return chunks
 
 def callout(kind, text):
     if kind == "warn":
@@ -192,45 +201,11 @@ def simple_table(headers, rows, col_widths=None):
     ]))
     return t
 
-def comparison_table(rows):
-    hrow = [Paragraph(h, S_TH) for h in
-            ["Aspect", "Reference Module (Egio)", "Aichouchm Module"]]
-    data = [hrow] + [[Paragraph(c, S_TD) for c in row] for row in rows]
-    t = Table(data, colWidths=[3.5*cm, 6*cm, 7.5*cm], repeatRows=1)
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(-1,0),  NAVY),
-        ("ROWBACKGROUNDS",(0,1),(-1,-1), [WHITE, GREY_LT]),
-        ("GRID",          (0,0),(-1,-1), 0.5, GREY_BD),
-        ("VALIGN",        (0,0),(-1,-1), "TOP"),
-        ("TOPPADDING",    (0,0),(-1,-1), 6),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 6),
-        ("LEFTPADDING",   (0,0),(-1,-1), 7),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 7),
-    ]))
-    return t
-
-def before_after(label_l, code_l, label_r, code_r):
-    lh = Paragraph("<b>Before (Reference)</b>", S("lh", fontSize=9, textColor=RED, fontName="Helvetica-Bold"))
-    rh = Paragraph("<b>After (Aichouchm)</b>",  S("rh", fontSize=9, textColor=GREEN, fontName="Helvetica-Bold"))
-    lc = Preformatted(code_l.strip("\n"), S_MONO)
-    rc = Preformatted(code_r.strip("\n"), S_MONO)
-    half = BODY_W / 2
-    t = Table([[lh, rh], [lc, rc]], colWidths=[half, half])
-    t.setStyle(TableStyle([
-        ("BACKGROUND",    (0,0),(0,0), RED_LT),
-        ("BACKGROUND",    (1,0),(1,0), GREEN_LT),
-        ("BACKGROUND",    (0,1),(0,1), CODE_BG),
-        ("BACKGROUND",    (1,1),(1,1), CODE_BG),
-        ("BOX",           (0,0),(0,-1), 1, RED),
-        ("BOX",           (1,0),(1,-1), 1, GREEN),
-        ("LINEAFTER",     (0,0),(0,-1), 1, GREY_BD),
-        ("VALIGN",        (0,0),(-1,-1), "TOP"),
-        ("TOPPADDING",    (0,0),(-1,-1), 7),
-        ("BOTTOMPADDING", (0,0),(-1,-1), 7),
-        ("LEFTPADDING",   (0,0),(-1,-1), 8),
-        ("RIGHTPADDING",  (0,0),(-1,-1), 8),
-    ]))
-    return t
+def filepath(text):
+    return _wrap(Paragraph(text, S("fp", fontName="Courier", fontSize=9,
+                 textColor=HexColor("#1e3a8a"), spaceAfter=0)),
+                 bg=BLUE_LT, line_color=BLUE, line_width=3,
+                 top_pad=5, bot_pad=5, left_pad=10)
 
 # ── Cover page ────────────────────────────────────────────────────────────────
 def cover_page():
@@ -238,19 +213,17 @@ def cover_page():
     items.append(Spacer(1, 6.5*cm))
     items.append(Paragraph("Aichouchm_AttributeImport", S_COVER_TITLE))
     items.append(Spacer(1, 0.5*cm))
-    items.append(Paragraph("Technical Strategy &amp; Decision Record", S_COVER_SUB))
+    items.append(Paragraph("Technical Reference", S_COVER_SUB))
     items.append(Spacer(1, 0.25*cm))
     items.append(Paragraph(
-        "How we designed a production-grade Magento 2 attribute import module", S_COVER_SUB))
+        "Complete class documentation in workflow order", S_COVER_SUB))
     items.append(Spacer(1, 2.5*cm))
 
     meta = [
         ["Module",  "Aichouchm_AttributeImport"],
         ["Package", "aichouchm/magento2-module-attribute-import"],
-        ["Version", "1.0.0"],
         ["Magento", "2.4.x"],
         ["PHP",     ">= 8.1"],
-        ["Date",    datetime.date.today().strftime("%B %d, %Y")],
         ["Author",  "Mehdi Aichouch"],
     ]
     rows = [[Paragraph(k, S_META_KEY), Paragraph(v, S_META_VAL)] for k, v in meta]
@@ -272,573 +245,1477 @@ def cover_page():
 def build_body():
     story = []
 
-    # Section 1
-    story += [h1("1  Context & Business Problem"), space()]
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 1 — Overview
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("1  Module Overview"), space()]
     story += [
-        p("This document records every architectural decision made while designing and building "
-          "<b>Aichouchm_AttributeImport</b>, a production-grade Magento 2 module for bulk-importing "
-          "product attribute options from CSV files via the Admin panel."),
-        p("It explains the problem being solved, the reference code that was analysed, what was "
-          "wrong in it, and exactly how each issue was addressed with code examples for every decision."),
+        p("Aichouchm_AttributeImport lets a Magento 2 admin upload a CSV file and bulk-import "
+          "product attribute options (colours, sizes, materials, etc.) with per-store-view labels "
+          "and hex-colour swatches. Without this module an admin must click <i>Add Option</i> one "
+          "row at a time — 200 colours across 3 store views = 600 manual interactions."),
         space(),
-        h2("1.1  Why This Module Exists"),
-        p("Magento 2 has no built-in mechanism for importing <b>attribute options</b> — the individual "
-          "selectable values of a <i>select</i> or <i>multiselect</i> attribute (colours, sizes, "
-          "materials, etc.). The only native path is clicking <i>Add Option</i> one row at a time."),
-        space(0.5),
-        p("For 200 colours across 3 store views that means <b>600 individual form interactions</b>."),
-        space(0.5),
-        callout("warn", "Real-world case: a fashion retailer with 350 colour options in French, "
-                "English, and German needed to migrate from a legacy PIM. Manual entry was estimated "
-                "at 2-3 days of admin work. With this module: one CSV upload, under 10 seconds."),
+        h2("1.1  Full Data Flow"),
+        code(
+"""Admin uploads CSV via browser form
+        |
+        v
+  [Index controller]   renders the import page (layout + blocks)
+        |
+        v (user clicks Check Data)
+  [Preview controller] receives multipart POST
+        |
+        v
+  [StreamingReader]    opens file, strips BOM, yields one row[] per line
+        |
+        v
+  [Validator]          validateHeaders() -- checks column count and names
+                       validateRows()    -- checks every rule, row by row
+        |
+        v (if valid)
+  [Preview block]      renders an HTML table preview, returned as JSON
+        |
+        v (user clicks Import)
+  [Process controller] receives multipart POST
+        |
+        v
+  [ImportService]      re-validates, then groups rows by option
+        |
+        v
+  [OptionProcessor]    writes to DB:
+                         INSERT INTO eav_attribute_option      (one per option)
+                         insertMultiple  eav_attribute_option_value   (all labels)
+                         insertOnDuplicate eav_attribute_option_swatch (all swatches)
+        |
+        v
+  [CacheManager]       clean(['eav', 'full_page', 'block_html'])
+        |
+        v
+  [Logger]             writes to var/log/attribute_import.log"""),
         space(),
-        h2("1.2  The Reference Module"),
-        p("A reference implementation (Egio_AttributeImport) was analysed. It demonstrated the right "
-          "idea and provided a useful starting point, but analysis revealed "
-          "<b>seven concrete production problems</b>. Each is documented in Section 3 with before/after code."),
-        PageBreak(),
-    ]
-
-    # Section 2
-    story += [h1("2  Module Architecture"), space()]
-    story += [
-        h2("2.1  Folder Structure"),
+        h2("1.2  Running Example CSV"),
+        p("Every method in this document is explained using this CSV. "
+          "The attribute <b>color</b> is a visual swatch (hex) attribute."),
+        code(
+"""attribute_code,store_view,value,hex_code,sort_order,is_default
+color,default,Red,#FF0000,1,1      <- group 1: admin row (sort_order + is_default here)
+color,fr,Rouge,#FF0000,1,1         <- group 1: French translation
+color,en,Red,#FF0000,1,1           <- group 1: English translation
+color,default,Blue,#0000FF,2,0     <- group 2: admin row
+color,fr,Bleu,#0000FF,2,0          <- group 2: French translation
+color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
+        space(),
+        h2("1.3  Folder Structure"),
         code(
 """Aichouchm_AttributeImport/
 |-- Api/
-|   `-- ImportServiceInterface.php      <- public service contract
+|   `-- ImportServiceInterface.php      <- public contract (interface)
 |-- Service/
-|   `-- StoreResolver.php               <- store code to store_id mapping
+|   `-- StoreResolver.php               <- store code -> store_id lookup
 |-- Model/
 |   |-- Csv/
-|   |   |-- StreamingReader.php         <- generator-based fgetcsv reader
-|   |   `-- Validator.php               <- stateless validator
+|   |   |-- StreamingReader.php         <- fgetcsv generator, O(1) memory
+|   |   `-- Validator.php               <- stateless, returns error list
 |   |-- Attribute/
 |   |   `-- OptionProcessor.php         <- bulk DB writes
 |   |-- Import/Source/Attributes.php    <- attribute dropdown source model
 |   `-- ImportService.php               <- main orchestrator
 |-- Controller/Adminhtml/Import/
-|   |-- Index.php                       <- renders the import form page
-|   |-- Preview.php                     <- AJAX: validate + preview HTML
-|   |-- Process.php                     <- AJAX: run the import
+|   |-- Index.php                       <- render the import page
+|   |-- Preview.php                     <- AJAX: Check Data
+|   |-- Process.php                     <- AJAX: Import
 |   `-- Log.php                         <- log viewer page
-|-- Block/Adminhtml/Import/  Log.php
-|-- etc/   di.xml  acl.xml  module.xml
+|-- Block/Adminhtml/
+|   |-- Import/
+|   |   |-- Form.php                    <- page container (buttons)
+|   |   |-- Form/Form.php               <- fieldset + form fields
+|   |   |-- Form/Before.php             <- passes URLs to JS template
+|   |   `-- Preview.php                 <- preview table block
+|   `-- Log.php                         <- log viewer block
+|-- etc/
+|   |-- module.xml  registration.php
+|   |-- di.xml  acl.xml
 |   `-- adminhtml/  menu.xml  routes.xml
-|-- view/adminhtml/  layout/  templates/
+|-- view/adminhtml/
+|   |-- layout/  attributeimport_import_index.xml
+|   |            attributeimport_import_log.xml
+|   `-- templates/import/  form/before.phtml
+|                           preview.phtml  log.phtml
 `-- Test/Unit/  Csv/  Attribute/"""),
-        space(),
-        h2("2.2  Data Flow"),
-        code(
-"""CSV upload (multipart/form-data POST)
-      |
-      v
-  StreamingReader.read($filePath)       -- fgetcsv generator, O(1) memory
-      | yields one row[] at a time
-      v
-  Validator.validateHeaders()           -- check column names & count
-  Validator.validateRows()              -- stateless; returns string[] errors
-      | (empty = valid, proceed)
-      v
-  ImportService.groupRowsByOption()     -- second streaming pass, group rows
-      | [{admin: row, stores: [row...]}, ...]
-      v
-  OptionProcessor.processGroups()       -- bulk DB writes:
-      |  . INSERT INTO eav_attribute_option        (one per new option)
-      |  . insertMultiple -> eav_attribute_option_value   (all labels)
-      |  . insertOnDuplicate -> eav_attribute_option_swatch (all swatches)
-      v
-  CacheManager.clean([eav, full_page])  -- invalidate EAV + FPC
-      v
-  Logger (PSR-3 virtual type)           -- var/log/attribute_import.log"""),
-        space(),
-        h2("2.3  Key Classes"),
-        simple_table(
-            ["Class", "Responsibility", "Pattern"],
-            [
-                ["StreamingReader", "Reads CSV row-by-row via fgetcsv generator", "Generator / Iterator"],
-                ["Validator", "Returns error list, holds no state", "Stateless Service"],
-                ["ImportService", "Orchestrates the entire import flow", "Facade / Service"],
-                ["OptionProcessor", "Bulk DB writes with batch queries", "Repository / Batch"],
-                ["StoreResolver", "Maps store codes to store_ids", "Lookup Service"],
-            ],
-            col_widths=[4.5*cm, 7*cm, 5.5*cm]
-        ),
         PageBreak(),
     ]
 
-    # Section 3
-    story += [h1("3  Seven Problems Solved"), space()]
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 2 — Configuration Layer
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("2  Configuration Layer"), space()]
     story += [
-        p("Each subsection names the problem, shows the reference code, explains why it fails in "
-          "production, and shows the improved version with the reasoning."),
+        p("These files wire the module into Magento before a single line of business logic runs. "
+          "Magento reads them at compile time and caches the result."),
         space(),
-        h2("Problem 1 -- Memory: Full CSV Load vs. Streaming Generator"),
-        p("The reference reader used <code>Magento\\Framework\\File\\Csv::getData()</code> which "
-          "reads the entire file into a PHP array. A 50,000-row file consumes tens of MB of memory."),
-        space(0.5),
-        before_after(
-            "getData() -- entire file in RAM",
-            """// CsvReader.php
-$data = $this->csvProcessor
-    ->getData($filePath);
-// getData() = one giant array
-// 50k rows ~ 30 MB RAM
-// PHP limit: 256 MB -> OOM risk""",
-            "fgetcsv generator -- O(1) memory",
-            """// StreamingReader.php
-public function read(string $path): \\Generator
-{
-    $h = fopen($path, 'r');
-    $bom = fread($h, 3);
-    if ($bom !== "\\xEF\\xBB\\xBF") {
-        rewind($h);
-    }
-    try {
-        $i = 0;
-        while (($r = fgetcsv($h)) !== false)
-            yield $i++ => array_map('trim', $r);
-    } finally { fclose($h); }
-}"""
-        ),
-        space(0.5),
-        callout("good", "Peak memory is now one row at a time (~1 KB) regardless of file size. "
-                "The BOM strip also handles Excel-exported CSVs; without it the first header reads "
-                "as 0xEF 0xBB 0xBF + 'attribute_code' and all header validation fails silently."),
-        space(),
-        h2("Problem 2 -- State Leakage in Validator"),
-        p("Magento's DI container instantiates services as singletons by default. Storing errors in "
-          "an instance variable means errors from a previous validation call persist into the next one."),
-        space(0.5),
-        before_after(
-            "Stateful -- accumulates errors",
-            """// CsvValidator.php
-private array $messageErrors = [];
 
-public function validate(array $rows): bool
-{
-    // errors from PREVIOUS call still here!
-    foreach ($rows as $row) {
-        if (empty($row[2])) {
-            $this->messageErrors[] = 'Empty';
-        }
-    }
-    return empty($this->messageErrors);
-}""",
-            "Stateless -- returns value",
-            """// Validator.php
-public function validateRows(
-    array $rows,
-    string $code,
-    int $swatchType
-): array {
-    $errors = [];  // local, discarded after return
-    foreach ($rows as $i => $row) {
-        if (empty($row[2])) {
-            $errors[] = "Row $i: value empty";
-        }
-    }
-    return $errors;  // no mutation of $this
-}"""
-        ),
-        space(0.5),
-        callout("warn", "The singleton bug: validate File A (1 error), then validate File B "
-                "(0 errors) -> second call still reports 1 error from File A. This causes false "
-                "validation failures that are extremely hard to reproduce in production."),
-        space(),
-        h2("Problem 3 -- N x M DB Queries vs. Batch Writes"),
-        p("The reference called <code>attributeRepository->save()</code> once per option. For "
-          "200 options x 3 store views that is 200+ full EAV save cycles (~600 DB round-trips)."),
-        space(0.5),
-        before_after(
-            "One save() per option",
-            """// Import.php
-foreach ($options as $value) {
-    $option = $this->optionFactory->create();
-    $option->setLabel($value);
-    $attribute->addData([
-        'option' => $option
-    ]);
-    // Full EAV load + save + cache bust
-    $this->attributeRepository->save($attribute);
-}
-// 200 options = 200 DB round-trips""",
-            "Batch inserts -- N+2 queries total",
-            """// OptionProcessor.php
-// 1. One INSERT per option (need lastInsertId)
-$conn->insert('eav_attribute_option', [
-    'attribute_id' => $attrId,
-    'sort_order'   => $order,
-]);
-$optId = (int) $conn->lastInsertId();
-
-// 2. ALL labels in ONE query
-$conn->insertMultiple(
-    'eav_attribute_option_value', $labelRows
-);
-
-// 3. ALL swatches in ONE query
-$conn->insertOnDuplicate(
-    'eav_attribute_option_swatch', $swatchRows
-);"""
-        ),
-        space(0.5),
-        callout("good", "200 options x 3 store views: reference = ~200 save() calls. "
-                "Improved = 200 option INSERTs + 1 label batch + 1 swatch batch = 202 queries. "
-                "Measured ~40x faster on a local Docker stack."),
-        PageBreak(),
-        h2("Problem 4 -- Wrong Store ID for 'default' Store Code"),
-        p("In Magento's EAV schema, <code>store_id = 0</code> is the admin (global) store. "
-          "Labels saved with store_id = 0 are the fallback for every store view. "
-          "The reference mapped CSV store code <code>'default'</code> via StoreManager which "
-          "returns store_id = 1 (the default store view), not store_id = 0."),
-        space(0.5),
-        before_after(
-            "Default maps to store_id=1 (wrong)",
-            """// Helper/Store.php
-public function getStoreId(string $code): int
-{
-    // StoreManager('default') -> store_id = 1
-    // This is the DEFAULT STORE VIEW, not admin
-    return (int) $this->storeManager
-        ->getStore($code)->getId();
-}""",
-            "Explicit alias -> store_id=0 (correct)",
-            """// Service/StoreResolver.php
-public function getStoreId(string $code): int
-{
-    if (in_array(
-        strtolower($code),
-        ['admin', 'default', '0'],
-        true
-    )) {
-        return 0;  // admin store = global fallback
-    }
-    return (int) $this->storeManager
-        ->getStore($code)->getId();
-}"""
-        ),
-        space(0.5),
-        callout("warn", "Without this fix, labels land in store_id=1 instead of store_id=0. "
-                "Magento then has no global fallback and shows empty option labels on store views "
-                "that have no explicit translation."),
-        space(),
-        h2("Problem 5 -- Overwriting Existing Options"),
-        p("The reference re-imported options that already existed, silently overwriting any "
-          "manual adjustments (sort_order, swatch colour) made by an admin since the last import."),
-        space(0.5),
-        before_after(
-            "Overwrites existing options",
-            """// Import.php
-foreach ($csvOptions as $value) {
-    // No existence check
-    $option->setLabel($value);
-    $attribute->addData([
-        'option' => $option
-    ]);
-    // Previous admin tweaks lost
-    $this->attributeRepository->save($attribute);
-}""",
-            "Pre-load then skip duplicates",
-            """// ImportService.php
-private function loadExisting(
-    AttributeInterface $attr
-): array {
-    return $conn->fetchPairs(
-        $select->where('store_id = 0')
-               ->where('attribute_id = ?', $attrId)
-    ); // ['Red' => 100, 'Blue' => 101, ...]
-}
-
-// OptionProcessor.php
-if (array_key_exists($label, $existing)) {
-    $result['skipped']++;
-    $result['skippedValues'][] = $label;
-    continue;  // O(1) hash lookup, no DB call
-}"""
-        ),
-        space(0.5),
-        callout("info", "Skip-not-overwrite is intentional. Admins often fine-tune sort_order "
-                "or swatch colours after initial import. Silently overwriting those changes on "
-                "re-import causes confusion and data loss. Skipped values are logged as WARNINGs."),
-        space(),
-        h2("Problem 6 -- No Service Interface"),
-        p("Controllers called the import logic via a concrete class, making unit testing "
-          "impossible without bootstrapping Magento or using reflection to swap dependencies."),
-        space(0.5),
-        before_after(
-            "Concrete class dependency",
-            """// Controller/Adminhtml/Import/Index.php
-public function __construct(
-    // ...
-    Import $import,  // concrete class
-) {}
-// Test must instantiate real Import
-// with all its DB/Magento dependencies""",
-            "Service interface + DI binding",
-            """// Api/ImportServiceInterface.php
-interface ImportServiceInterface
-{
-    public function validate(
-        string $filePath,
-        string $attributeCode
-    ): array;
-
-    public function import(
-        string $filePath,
-        string $attributeCode
-    ): array;
-}
-
-// di.xml: interface -> concrete class
-// Controllers type-hint the interface"""
-        ),
-        space(0.5),
-        callout("good", "With the interface, unit tests inject a mock that returns controlled "
-                "fixtures -- no database, no Magento bootstrap. All 14 unit tests run in under 1 second."),
-        space(),
-        h2("Problem 7 -- Logger Semantics"),
-        p("The reference used a custom Helper/Logger class that manually prepended timestamps "
-          "(Monolog already handles that) and had no PSR-3 interface. Magento provides a clean "
-          "way to create a dedicated logger using only a virtual type in di.xml."),
-        space(0.5),
-        before_after(
-            "Custom Logger helper class",
-            """// Helper/Logger.php
-class Logger
-{
-    public function log(
-        string $msg,
-        string $level
-    ): void {
-        $ts = date('Y-m-d H:i:s');
-        $line = "[$ts][$level] $msg";
-        fwrite($this->handle, $line . PHP_EOL);
-    }
-    // No PSR-3, no Monolog features
-}""",
-            "Monolog virtual type in di.xml",
-            """<!-- etc/di.xml -->
-<virtualType
-  name="AttributeImportLogger"
-  type="Magento\\Framework\\Logger\\Monolog">
-  <arguments>
-    <argument name="name"
-              xsi:type="string">attributeimport
-    </argument>
-    <argument name="handlers" xsi:type="array">
-      <item name="system" xsi:type="object">
-        AttributeImportStreamHandler
-      </item>
-    </argument>
-  </arguments>
-</virtualType>
-<!-- No PHP class needed -->
-<!-- Inject as LoggerInterface $logger -->"""
-        ),
-        space(0.5),
-        callout("info", "Virtual types create a named DI object without a PHP class. "
-                "The result is a fully PSR-3 compliant Monolog logger that writes to "
-                "var/log/attribute_import.log with timestamps, levels, and context built in."),
-        PageBreak(),
-    ]
-
-    # Section 4
-    story += [h1("4  Swatch Support"), space()]
-    story += [
-        p("Magento stores swatches in <code>eav_attribute_option_swatch</code>. "
-          "The <code>type</code> column encodes the kind:"),
-        simple_table(
-            ["type value", "Swatch kind", "value column content"],
-            [
-                ["0", "Text swatch", "Styled label string (e.g. 'XL')"],
-                ["1", "Colour (hex)", "Hex string e.g. #FF0000"],
-                ["2", "Image URL", "Path e.g. /media/swatch/red.jpg"],
-            ],
-            col_widths=[3*cm, 4*cm, 10*cm]
-        ),
-        space(),
-        h2("4.1  Auto-detecting Swatch Type"),
-        p("The Validator checks the attribute's <code>frontend_input</code> to determine the type:"),
+        h2("registration.php"),
+        filepath("Aichouchm_AttributeImport/registration.php"),
+        p("Every Magento module must call <b>ComponentRegistrar::register()</b> so Magento's "
+          "module loader can discover it. Without this file the module is invisible — no routes, "
+          "no blocks, no DI."),
         code(
-"""// Validator.php
-public const SWATCH_NONE   = -1;  // plain select / multiselect
-public const SWATCH_TEXT   =  0;  // swatch_text attribute
-public const SWATCH_VISUAL =  1;  // swatch_visual attribute
-
-public function detectSwatchType(
-    AttributeInterface $attribute
-): int {
-    $input = $attribute->getFrontendInput();
-    if ($input === 'swatch_visual') return self::SWATCH_VISUAL;
-    if ($input === 'swatch_text')   return self::SWATCH_TEXT;
-    return self::SWATCH_NONE;
-}"""),
+"""ComponentRegistrar::register(
+    ComponentRegistrar::MODULE,
+    'Aichouchm_AttributeImport',
+    __DIR__
+);"""),
+        callout("info", "'__DIR__' is the absolute path to the module root. Magento uses it to "
+                "resolve all relative paths inside the module (templates, layout XML, etc.)."),
         space(),
-        h2("4.2  CSV Format by Attribute Type"),
-        simple_table(
-            ["Attribute type", "Columns", "swatch column"],
-            [
-                ["select / multiselect", "attribute_code, store_view, value, sort_order, is_default", "Not present"],
-                ["swatch_visual", "attribute_code, store_view, value, swatch, sort_order, is_default", "#RRGGBB or /url"],
-                ["swatch_text", "Same 6 columns as visual", "Styled label string"],
-            ],
-            col_widths=[3.5*cm, 8.5*cm, 5*cm]
-        ),
-        PageBreak(),
-    ]
 
-    # Section 5
-    story += [h1("5  CSV Format & Row Grouping"), space()]
-    story += [
-        p("Each attribute option is represented as a <b>group</b> of rows. The first row must "
-          "have <code>store_view = default</code> (or <code>admin</code>) — this is the global "
-          "admin label, and is where sort_order and is_default are read from. Subsequent rows "
-          "in the same group are store-view translations."),
-        space(),
-        h2("5.1  Example CSV (swatch_visual)"),
+        h2("etc/module.xml"),
+        filepath("Aichouchm_AttributeImport/etc/module.xml"),
+        p("Declares the module name and its setup version. The <b>sequence</b> tag tells Magento "
+          "to load Magento_Swatches before this module, ensuring swatch tables exist before "
+          "this module tries to write to them."),
         code(
-"""attribute_code,store_view,value,swatch,sort_order,is_default
-color,default,Red,#FF0000,1,1        <- group 1 starts (admin row)
-color,fr,Rouge,#FF0000,1,1           <- French translation
-color,en,Red,#FF0000,1,1             <- English translation
-color,default,Blue,#0000FF,2,0       <- group 2 starts
-color,fr,Bleu,#0000FF,2,0
-color,en,Blue,#0000FF,2,0"""),
+"""<module name="Aichouchm_AttributeImport">
+    <sequence>
+        <module name="Magento_Swatches"/>
+    </sequence>
+</module>"""),
         space(),
-        h2("5.2  Column Reference"),
-        simple_table(
-            ["Column", "Required", "Description"],
-            [
-                ["attribute_code", "Always", "Must match the selected attribute on every row"],
-                ["store_view", "Always", "'default'/'admin' = global (store_id=0). Others must be valid Magento store codes"],
-                ["value", "Always", "The option label for this store view"],
-                ["swatch / hex_code", "Swatch attrs only", "Hex colour (#RRGGBB) or image URL. Ignored for plain select"],
-                ["sort_order", "Admin row only", "Integer. Controls display order in dropdowns"],
-                ["is_default", "Admin row only", "1 = default selected value. Only one option per import may have is_default=1"],
-            ],
-            col_widths=[3.5*cm, 3*cm, 10.5*cm]
-        ),
-        PageBreak(),
-    ]
 
-    # Section 6
-    story += [h1("6  Validation Rules"), space()]
-    story += [
-        p("All validation runs in a single pass before any DB write. If any error is found, "
-          "the import is blocked entirely -- no partial state."),
-        space(),
+        h2("etc/adminhtml/routes.xml"),
+        filepath("Aichouchm_AttributeImport/etc/adminhtml/routes.xml"),
+        p("Registers the URL front-name <b>attributeimport</b> for the admin router. "
+          "This is the first segment of every URL this module handles."),
+        code(
+"""<router id="admin">
+    <route id="attributeimport" frontName="attributeimport">
+        <module name="Aichouchm_AttributeImport"/>
+    </route>
+</router>"""),
+        p("URL pattern: <b>/admin/attributeimport/{controller}/{action}</b>"),
         simple_table(
-            ["Rule", "Severity"],
+            ["URL", "Controller file", "Action"],
             [
-                ["Column count must match expected layout", "Error -- blocks import"],
-                ["Column names must match expected names", "Error -- blocks import"],
-                ["attribute_code must match selected attribute on every row", "Error -- blocks import"],
-                ["store_view and value must not be empty", "Error -- blocks import"],
-                ["First row of each group must be a default/admin row", "Error -- blocks import"],
-                ["sort_order must be a number", "Error -- blocks import"],
-                ["is_default must be 0 or 1", "Error -- blocks import"],
-                ["Only one option may have is_default=1", "Error -- blocks import"],
-                ["No duplicate values in the same admin store within the CSV", "Error -- blocks import"],
-                ["No duplicate store codes within the same option group", "Error -- blocks import"],
-                ["Non-existent store codes", "Error -- blocks import"],
-                ["Option value already exists in the database", "Warning -- logs and skips"],
+                ["/admin/attributeimport/import/index",   "Controller/Adminhtml/Import/Index.php",   "Render import page"],
+                ["/admin/attributeimport/import/preview", "Controller/Adminhtml/Import/Preview.php", "AJAX: Check Data"],
+                ["/admin/attributeimport/import/process", "Controller/Adminhtml/Import/Process.php", "AJAX: Import"],
+                ["/admin/attributeimport/import/log",     "Controller/Adminhtml/Import/Log.php",     "Log viewer page"],
             ],
-            col_widths=[12*cm, 5*cm]
+            col_widths=[6*cm, 6.5*cm, 4.5*cm]
         ),
         space(),
-        callout("info", "The two-pass strategy (validate then import) guarantees atomicity: "
-                "either all new options are imported, or none are. There is no partially-imported "
-                "state to roll back."),
-        PageBreak(),
-    ]
 
-    # Section 7
-    story += [h1("7  Admin UI Design"), space()]
-    story += [
-        h2("7.1  Import Form Page  (Stores -> Attributes -> Import Attributes)"),
-        bullet("Attribute selector -- dropdown of all user-defined select/multiselect/swatch attributes"),
-        bullet("File upload field -- CSV only"),
-        bullet("<b>Check Data</b> button -- triggers AJAX validation, shows preview table"),
-        bullet("<b>Import</b> button -- only enabled after successful validation"),
-        bullet("Notification area -- success / error messages"),
-        bullet("Link to the import log viewer"),
-        space(),
-        h2("7.2  Two-Step Import Flow"),
+        h2("etc/adminhtml/menu.xml"),
+        filepath("Aichouchm_AttributeImport/etc/adminhtml/menu.xml"),
+        p("Adds the <i>Import Attributes</i> item to the admin menu under "
+          "<b>Stores &rarr; Attributes</b>. Every attribute is declarative — "
+          "Magento merges all modules' menu.xml files at cache-build time."),
         code(
-"""Step 1 -- Check Data  (AJAX POST -> /attributeimport/import/preview)
-  |-- Validates headers and all rows
-  |-- If errors: shows error list, Import button stays disabled
-  `-- If valid: shows preview table with first 10 rows, enables Import button
-
-Step 2 -- Import  (AJAX POST -> /attributeimport/import/process)
-  |-- Runs the actual import
-  |-- Returns: {success, imported, skipped, skippedValues, messages}
-  `-- Shows: "Imported 47 options. Skipped 3 (already existed)." """),
-        space(),
-        h2("7.3  Log Viewer"),
+"""<add id="Aichouchm_AttributeImport::import_attributes"
+     title="Import Attributes"
+     parent="Magento_Backend::stores_attributes"
+     action="attributeimport/import/index"
+     sortOrder="70"
+     resource="Aichouchm_AttributeImport::import_attributes"/>"""),
         simple_table(
-            ["Log level", "Colour", "When written"],
+            ["Attribute", "Value", "Purpose"],
             [
-                ["INFO",    "Green", "Import started; import completed with summary counts"],
-                ["WARNING", "Amber", "Option skipped because it already exists in the database"],
-                ["ERROR",   "Red",   "Validation failure; unexpected exception during import"],
+                ["id",        "Aichouchm_AttributeImport::import_attributes", "Unique menu item identifier"],
+                ["parent",    "Magento_Backend::stores_attributes",           "Places item under Stores > Attributes"],
+                ["action",    "attributeimport/import/index",                 "frontName/controller/action URL"],
+                ["sortOrder", "70",                                           "Position after Rating (sortOrder 60)"],
+                ["resource",  "Aichouchm_AttributeImport::import_attributes", "ACL resource that gates access"],
             ],
-            col_widths=[2.5*cm, 2.5*cm, 12*cm]
+            col_widths=[2.5*cm, 6.5*cm, 8*cm]
         ),
-        PageBreak(),
-    ]
-
-    # Section 8
-    story += [h1("8  DI Configuration"), space()]
-    story += [
-        h2("8.1  di.xml: Virtual Logger"),
-        code(
-"""<!-- No PHP class needed -- Magento wires this automatically -->
-<virtualType name="AttributeImportLogger"
-             type="Magento\\Framework\\Logger\\Monolog">
-  <arguments>
-    <argument name="name" xsi:type="string">attributeimport</argument>
-    <argument name="handlers" xsi:type="array">
-      <item name="system" xsi:type="object">
-        AttributeImportStreamHandler
-      </item>
-    </argument>
-  </arguments>
-</virtualType>
-
-<virtualType name="AttributeImportStreamHandler"
-             type="Magento\\Framework\\Logger\\Handler\\Base">
-  <arguments>
-    <argument name="fileName" xsi:type="string">
-      /var/log/attribute_import.log
-    </argument>
-  </arguments>
-</virtualType>"""),
         space(),
-        h2("8.2  di.xml: Service Interface Binding"),
-        code(
-"""<preference for="Aichouchm\\AttributeImport\\Api\\ImportServiceInterface"
-            type="Aichouchm\\AttributeImport\\Model\\ImportService"/>"""),
-        space(),
-        h2("8.3  ACL Resource Tree"),
+
+        h2("etc/acl.xml"),
+        filepath("Aichouchm_AttributeImport/etc/acl.xml"),
+        p("Registers the ACL resource in the Magento permission tree. Admin roles can be granted "
+          "or denied this resource under <b>System &rarr; Permissions &rarr; User Roles</b>."),
         code(
 """Magento_Backend::stores
   `-- Magento_Backend::stores_attributes
         `-- Aichouchm_AttributeImport::import_attributes
-              <- "Import Attributes" -- assign to any admin role"""),
+              <- "Import Attributes" resource"""),
+        space(),
+
+        h2("etc/di.xml"),
+        filepath("Aichouchm_AttributeImport/etc/di.xml"),
+        p("Wires three things: the dedicated Monolog logger, the service interface binding, "
+          "and injects the logger into the classes that need it."),
+        code(
+"""<!-- 1. Dedicated log handler: writes to var/log/attribute_import.log -->
+<virtualType name="Aichouchm\\AttributeImport\\Logger\\Handler"
+             type="Magento\\Framework\\Logger\\Handler\\Base">
+    <arguments>
+        <argument name="fileName">/var/log/attribute_import.log</argument>
+    </arguments>
+</virtualType>
+
+<!-- 2. Named Monolog channel using the handler above -->
+<virtualType name="Aichouchm\\AttributeImport\\Logger\\Logger"
+             type="Magento\\Framework\\Logger\\Monolog">
+    <arguments>
+        <argument name="name">AttributeImport</argument>
+        <argument name="handlers" xsi:type="array">
+            <item name="default" xsi:type="object">
+                Aichouchm\\AttributeImport\\Logger\\Handler
+            </item>
+        </argument>
+    </arguments>
+</virtualType>
+
+<!-- 3. Inject the logger into classes that declare LoggerInterface $logger -->
+<type name="Aichouchm\\AttributeImport\\Model\\ImportService">
+    <arguments>
+        <argument name="logger" xsi:type="object">
+            Aichouchm\\AttributeImport\\Logger\\Logger
+        </argument>
+    </arguments>
+</type>
+
+<!-- 4. Bind interface -> concrete class -->
+<preference for="Aichouchm\\AttributeImport\\Api\\ImportServiceInterface"
+            type="Aichouchm\\AttributeImport\\Model\\ImportService"/>"""),
+        callout("info", "Virtual types create a named DI object without a PHP class file. "
+                "Magento's DI container builds the Monolog logger with the correct handler "
+                "purely from XML. No Logger.php needed."),
         PageBreak(),
     ]
 
-    # Section 9
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 3 — Loading the Import Page
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("3  Loading the Import Page"), space()]
+    story += [
+        p("When the admin clicks <i>Import Attributes</i> in the menu, Magento routes the request "
+          "to the Index controller, which returns a Page result. Magento then merges layout XML "
+          "to build the page structure."),
+        space(),
+
+        h2("Controller/Adminhtml/Import/Index.php"),
+        filepath("Aichouchm_AttributeImport/Controller/Adminhtml/Import/Index.php"),
+        p("The simplest possible admin controller. Its only job is to declare which page to render."),
+        code(
+"""class Index extends Action implements HttpGetActionInterface
+{
+    public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
+
+    public function execute(): Page
+    {
+        $resultPage = $this->resultPageFactory->create();
+        $resultPage->setActiveMenu('Aichouchm_AttributeImport::import_attributes');
+        $resultPage->getConfig()->getTitle()->prepend(__('Import Attribute Options'));
+        return $resultPage;
+    }
+}"""),
+        simple_table(
+            ["Item", "Purpose"],
+            [
+                ["extends Action",        "Gives access to request, DI, and auto-runs _isAllowed()"],
+                ["ADMIN_RESOURCE",        "Parent Action reads this constant and blocks unauthorized roles"],
+                ["resultPageFactory",     "Creates a Page result — never use 'new Page()' in Magento"],
+                ["setActiveMenu()",       "Highlights the correct item in the left sidebar menu"],
+                ["getTitle()->prepend()", "Sets the browser tab title and admin page heading"],
+            ],
+            col_widths=[4.5*cm, 12.5*cm]
+        ),
+        space(),
+
+        h2("view/adminhtml/layout/attributeimport_import_index.xml"),
+        filepath("Aichouchm_AttributeImport/view/adminhtml/layout/attributeimport_import_index.xml"),
+        p("The file name <b>attributeimport_import_index.xml</b> is not arbitrary — it is the "
+          "page handle, built from frontName_controller_action. Magento loads this file "
+          "automatically for every request to that URL."),
+        code(
+"""<page>
+    <head>
+        <css src="Aichouchm_AttributeImport::css/styles.css"/>
+    </head>
+    <body>
+        <referenceContainer name="content">
+
+            <block class="...Import\\Form"
+                   name="attributeimport.form"/>
+
+            <block class="...Import\\Preview"
+                   name="attributeimport.preview"
+                   template="...::import/preview.phtml"/>
+
+            <block class="...Import\\Form\\Before"
+                   name="attributeimport.before"
+                   template="...::import/form/before.phtml"/>
+
+        </referenceContainer>
+    </body>
+</page>"""),
+        p("<b>referenceContainer name=\"content\"</b> targets the main content area that Magento's "
+          "base admin layout already defines. This module adds its three blocks into that slot "
+          "without touching the admin shell (header, sidebar, footer)."),
+        simple_table(
+            ["Block", "Class", "Responsibility"],
+            [
+                ["attributeimport.form",    "Import\\Form",        "Page wrapper with button bar"],
+                ["attributeimport.preview", "Import\\Preview",     "Validation results table (hidden until Check Data)"],
+                ["attributeimport.before",  "Import\\Form\\Before","JS logic + AJAX URLs"],
+            ],
+            col_widths=[4.5*cm, 4*cm, 8.5*cm]
+        ),
+        PageBreak(),
+
+        h2("Block/Adminhtml/Import/Form.php  (Container)"),
+        filepath("Aichouchm_AttributeImport/Block/Adminhtml/Import/Form.php"),
+        p("Extends <b>Magento\\Backend\\Block\\Widget\\Form\\Container</b> which provides the "
+          "standard admin page card with a button bar at the top. All buttons are managed via "
+          "the <b>buttonList</b> API — no HTML written by hand."),
+        code(
+"""class Form extends Container
+{
+    protected $_mode = 'form';
+
+    protected function _construct(): void
+    {
+        parent::_construct();
+
+        // Remove buttons that do not apply to this page
+        $this->buttonList->remove('back');
+        $this->buttonList->remove('reset');
+
+        // Rename the default Save button
+        $this->buttonList->update('save', 'label',   __('Import'));
+        $this->buttonList->update('save', 'id',      'import-button');
+        $this->buttonList->update('save', 'class',   'primary disabled');
+        $this->buttonList->update('save', 'onclick', 'attributeImport.submit()');
+
+        // Add the Check Data button
+        $this->buttonList->add('check-data-button', [
+            'label'   => __('Check Data'),
+            'id'      => 'check-data-button',
+            'onclick' => 'attributeImport.checkData();',
+        ]);
+
+        // These three properties tell Container where to find its child form block
+        $this->_objectId   = 'import_ids';
+        $this->_blockGroup = 'Aichouchm_AttributeImport';
+        $this->_controller = 'adminhtml_import';
+    }
+}"""),
+        callout("info", "The three protected properties (_objectId, _blockGroup, _controller) "
+                "tell Container to auto-discover its child block. It constructs the class name "
+                "Block/Adminhtml/Import/Form/Form.php from _blockGroup + _controller. "
+                "That is why the inner form class lives at exactly that path."),
+        space(),
+
+        h2("Block/Adminhtml/Import/Form/Form.php  (Generic)"),
+        filepath("Aichouchm_AttributeImport/Block/Adminhtml/Import/Form/Form.php"),
+        p("Extends <b>Magento\\Backend\\Block\\Widget\\Form\\Generic</b> which provides the "
+          "<b>_formFactory</b> and the <b>_prepareForm()</b> hook. Override _prepareForm() "
+          "to describe fields — Magento renders the HTML."),
+        code(
+"""protected function _prepareForm(): static
+{
+    $form = $this->_formFactory->create([
+        'data' => [
+            'id'      => 'attribute-import-form',
+            'method'  => 'post',
+            'enctype' => 'multipart/form-data',  // required for file uploads
+        ],
+    ]);
+
+    $fieldset = $form->addFieldset('base_fieldset', [
+        'legend' => __('Import Settings'),
+    ]);
+
+    // Dropdown: all user-defined select/multiselect attributes
+    $fieldset->addField('attribute_code', 'select', [
+        'name'     => 'attribute_code',
+        'label'    => __('Select Attribute'),
+        'required' => true,
+        'values'   => $this->sourceAttributes->toOptionArray(),
+        'onchange' => 'attributeImport.onAttributeChange();',
+    ]);
+
+    // File upload input
+    $fieldset->addField('import_file', 'file', [
+        'name'     => 'import_file',
+        'label'    => __('CSV File'),
+        'required' => true,
+        'onchange' => 'attributeImport.onFileChange();',
+    ]);
+
+    $form->setUseContainer(true);  // renders the <form> tag
+    $this->setForm($form);
+    return parent::_prepareForm();
+}"""),
+        callout("warn", "setUseContainer(true) is mandatory. Without it the form tag is not "
+                "rendered and the file upload POST never reaches the controller."),
+        space(),
+
+        h2("Model/Import/Source/Attributes.php"),
+        filepath("Aichouchm_AttributeImport/Model/Import/Source/Attributes.php"),
+        p("A Magento source model — implements <b>ArrayInterface</b> and provides "
+          "<b>toOptionArray()</b> for the attribute dropdown. Only user-defined select and "
+          "multiselect attributes are listed (visual swatch attributes also have "
+          "frontend_input='select' in the database)."),
+        code(
+"""public function toOptionArray(): array
+{
+    if ($this->options !== null) {
+        return $this->options;  // memoized: only loads once per request
+    }
+
+    $this->options = [['value' => '', 'label' => __('-- Please Select --')]];
+
+    $items = $this->attributeRepository
+        ->getList('catalog_product', $this->searchCriteriaBuilder->create())
+        ->getItems();
+
+    foreach ($items as $attribute) {
+        if (
+            $attribute->getIsUserDefined()  // excludes system attributes like 'status', 'price'
+            && in_array($attribute->getFrontendInput(), ['select', 'multiselect'], true)
+        ) {
+            $this->options[] = [
+                'value' => $attribute->getAttributeCode(),
+                'label' => sprintf('%s [%s]',
+                    $attribute->getDefaultFrontendLabel() ?? $attribute->getAttributeCode(),
+                    $attribute->getAttributeCode()
+                ),
+            ];
+        }
+    }
+
+    return $this->options;
+}"""),
+        p("Result for a store with color and size attributes:"),
+        code(
+"""[
+    ['value' => '',      'label' => '-- Please Select --'],
+    ['value' => 'color', 'label' => 'Color [color]'],
+    ['value' => 'size',  'label' => 'Size [size]'],
+]"""),
+        PageBreak(),
+    ]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 4 — The Before Block & JavaScript
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("4  The Before Block and JavaScript"), space()]
+    story += [
+        p("The Before block's job is to generate server-side URLs and pass them into the "
+          "JavaScript template. This is necessary because Magento appends a secret key "
+          "to every admin URL (CSRF protection) — a URL hardcoded in JS would be rejected."),
+        space(),
+
+        h2("Block/Adminhtml/Import/Form/Before.php"),
+        filepath("Aichouchm_AttributeImport/Block/Adminhtml/Import/Form/Before.php"),
+        code(
+"""class Before extends Template
+{
+    public function getPreviewUrl(): string
+    {
+        return $this->getUrl('attributeimport/import/preview');
+    }
+
+    public function getProcessUrl(): string
+    {
+        return $this->getUrl('attributeimport/import/process');
+    }
+}"""),
+        p("<b>getUrl()</b> is inherited from <b>Magento\\Backend\\Block\\Template</b>. "
+          "It appends the admin secret key automatically:"),
+        code(
+"""// What getUrl() returns:
+// https://magento.local/admin/attributeimport/import/preview/key/abc123/
+
+// The key= parameter changes per session. Without it Magento returns 403.
+// Generating URLs in PHP and passing them to JS is the only correct approach."""),
+        space(),
+
+        h2("view/adminhtml/templates/import/form/before.phtml"),
+        filepath("Aichouchm_AttributeImport/view/adminhtml/templates/import/form/before.phtml"),
+        p("The template renders the notification div, the preview container, and all the "
+          "JavaScript. The JS is rendered via <b>$secureRenderer->renderTag()</b> — Magento's "
+          "CSP-safe way to output inline scripts."),
+        space(),
+        h3("HTML structure rendered by this template"),
+        code(
+"""<!-- Notification bar: hidden by default, shown by showMessage() -->
+<div id="import-notification" class="hidden"></div>
+
+<!-- Preview section: hidden until Check Data is clicked -->
+<div id="preview-section">
+    <h2 id="validation-heading" class="hidden">Validation Results</h2>
+    <div id="preview-container"></div>  <!-- Preview HTML injected here by AJAX -->
+</div>"""),
+        space(),
+        h3("JavaScript: window.attributeImport object"),
+        p("A single object exposed on window. All button onclick handlers call methods on it."),
+        code(
+"""window.attributeImport = {
+
+    // Called by Check Data button: onclick="attributeImport.checkData()"
+    checkData: function () {
+        var formData = new FormData($('#attribute-import-form')[0]);
+        $.ajax({
+            url:         '$previewUrl',   // from block->getPreviewUrl()
+            type:        'POST',
+            data:        formData,
+            contentType: false,           // must be false for multipart
+            processData: false,           // must be false for FormData
+            dataType:    'json',
+            success: function (response) {
+                if (!response.success) {
+                    attributeImport.showMessage(response.message, 'error');
+                    return;
+                }
+                $('#preview-container').html(response.data); // inject preview HTML
+                $('#validation-heading').removeClass('hidden');
+
+                if (response.is_valid) {
+                    attributeImport.hideMessage();
+                    attributeImport.enableImport();   // enable Import button
+                } else {
+                    attributeImport.showMessage('Validation failed...', 'error');
+                    attributeImport.resetButtons();
+                }
+            },
+            error: function () {
+                attributeImport.showMessage('$serverError', 'error');
+            }
+        });
+    },"""),
+        code(
+"""    // Called by Import button: onclick="attributeImport.submit()"
+    submit: function () {
+        var formData = new FormData($('#attribute-import-form')[0]);
+        $.ajax({
+            url:         '$processUrl',   // from block->getProcessUrl()
+            type:        'POST',
+            data:        formData,
+            contentType: false,
+            processData: false,
+            dataType:    'json',
+            success: function (response) {
+                attributeImport.resetAfterSubmit();
+                if (response.success) {
+                    var msg = response.messages.join('<br>');
+                    if (response.skipped > 0) {
+                        msg += '<br><em>' + response.skipped + ' skipped (already exist)</em>';
+                    }
+                    attributeImport.showMessage(msg, 'success');
+                } else {
+                    attributeImport.showMessage(response.messages.join('<br>'), 'error');
+                }
+            }
+        });
+    },"""),
+        code(
+"""    // UI state helpers
+    onAttributeChange: function () { this.resetState(); },
+    onFileChange:      function () { this.resetState(); },
+
+    resetState: function () {
+        this.resetButtons();                           // Import disabled, Check enabled
+        $('#validation-heading').addClass('hidden');
+        $('#preview-container').html('');
+        this.hideMessage();
+    },
+
+    enableImport: function () {
+        $('#import-button').removeClass('disabled');
+        $('#check-data-button').addClass('disabled');  // prevent double-validation
+    },
+
+    resetButtons: function () {
+        $('#import-button').addClass('disabled');
+        $('#check-data-button').removeClass('disabled');
+    },
+
+    showMessage: function (text, type) {
+        $('#import-notification')
+            .removeClass('hidden message-error message-success')
+            .addClass('message ' + (type === 'success' ? 'message-success' : 'message-error'))
+            .html('<div>' + text + '</div>');
+    },
+
+    hideMessage: function () {
+        $('#import-notification')
+            .addClass('hidden')
+            .removeClass('message message-error message-success')
+            .html('');
+    }
+};"""),
+        callout("info", "contentType: false and processData: false are mandatory for jQuery AJAX "
+                "file uploads. They tell jQuery not to serialize the FormData object and not to "
+                "set a Content-Type header (the browser sets multipart/form-data with the correct "
+                "boundary automatically)."),
+        PageBreak(),
+    ]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 5 — Check Data Flow
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("5  Check Data Flow  (AJAX POST -> Preview controller)"), space()]
+    story += [
+        p("When the admin clicks <b>Check Data</b>, the JS sends a multipart POST to "
+          "/attributeimport/import/preview. The controller validates the CSV and returns "
+          "a JSON object containing rendered HTML."),
+        space(),
+
+        h2("Controller/Adminhtml/Import/Preview.php"),
+        filepath("Aichouchm_AttributeImport/Controller/Adminhtml/Import/Preview.php"),
+        code(
+"""public function execute(): Json
+{
+    $result = $this->resultJsonFactory->create();
+    try {
+        $this->assertValidRequest();       // validate the HTTP request itself
+        $attributeCode = $this->getRequest()->getParam('attribute_code');
+        $filePath      = $this->getUploadedFilePath();
+
+        $validation = $this->importService->validate($filePath, $attributeCode);
+        $html       = $this->renderPreviewBlock($validation['rows'], $validation['errors']);
+
+        return $result->setData([
+            'success'  => true,
+            'data'     => $html,        // rendered HTML table
+            'is_valid' => $validation['is_valid'],
+        ]);
+    } catch (Exception $e) {
+        return $result->setData(['success' => false, 'message' => $e->getMessage()]);
+    }
+}"""),
+        space(),
+        h3("assertValidRequest()  — validates the HTTP layer"),
+        code(
+"""private function assertValidRequest(): void
+{
+    $files = $this->getRequest()->getFiles()->toArray();
+
+    if (empty($files['import_file']['tmp_name'])) {
+        throw new Exception('Please upload a CSV file.');
+    }
+    // pathinfo() extracts the extension without executing the filename
+    if (strtolower(pathinfo($files['import_file']['name'], PATHINFO_EXTENSION)) !== 'csv') {
+        throw new Exception('Only CSV files are allowed.');
+    }
+    if (empty($this->getRequest()->getParam('attribute_code'))) {
+        throw new Exception('Please select an attribute.');
+    }
+}"""),
+        callout("warn", "This check is about the HTTP request, not the CSV content. It runs "
+                "before any file parsing. The CSV content is validated separately by Validator."),
+        space(),
+        h3("renderPreviewBlock()  — renders the preview table as an HTML string"),
+        code(
+"""private function renderPreviewBlock(array $rows, array $errors): string
+{
+    return $this->layoutFactory->create()
+        ->createBlock(PreviewBlock::class)
+        ->setTemplate('Aichouchm_AttributeImport::import/preview.phtml')
+        ->setData(compact('rows', 'errors'))
+        ->toHtml();
+}"""),
+        p("<b>layoutFactory->create()</b> creates a minimal standalone layout — just enough to "
+          "render one block, without loading the full admin page structure. "
+          "<b>toHtml()</b> executes the template and returns the HTML string that will be "
+          "embedded in the JSON response and injected into the page via jQuery."),
+        space(),
+
+        h2("Api/ImportServiceInterface.php"),
+        filepath("Aichouchm_AttributeImport/Api/ImportServiceInterface.php"),
+        p("Defines the public contract for the import service. Controllers type-hint this "
+          "interface, not the concrete class. This makes unit testing possible — tests inject "
+          "a mock instead of a real ImportService."),
+        code(
+"""interface ImportServiceInterface
+{
+    // Returns: ['is_valid' => bool, 'errors' => string[], 'rows' => array[]]
+    public function validate(string $filePath, string $attributeCode): array;
+
+    // Returns: ['success' => bool, 'messages' => string[],
+    //           'imported' => int, 'skipped' => int]
+    public function import(string $filePath, string $attributeCode): array;
+}"""),
+        space(),
+
+        h2("Model/Csv/StreamingReader.php"),
+        filepath("Aichouchm_AttributeImport/Model/Csv/StreamingReader.php"),
+        p("Opens a CSV file and yields one row at a time via a PHP Generator. "
+          "Peak memory is always one row (~1 KB) regardless of file size."),
+        code(
+"""public function read(string $filePath): Generator
+{
+    $handle = @fopen($filePath, 'r');
+    if ($handle === false) {
+        throw new RuntimeException('Cannot open CSV file: ' . $filePath);
+    }
+
+    // Strip UTF-8 BOM (added by Excel when exporting CSV)
+    // Without this, the first header reads as garbage + 'attribute_code'
+    // and all header validation fails.
+    $bom = fread($handle, 3);
+    if ($bom !== "\\xEF\\xBB\\xBF") {
+        rewind($handle);  // not a BOM, put those 3 bytes back
+    }
+
+    try {
+        $lineNumber = 0;
+        while (($row = fgetcsv($handle, 0, ',', '"', '\\\\')) !== false) {
+            yield $lineNumber => array_map('trim', $row);
+            $lineNumber++;
+        }
+    } finally {
+        fclose($handle);  // always closed, even if the caller throws mid-iteration
+    }
+}"""),
+        p("Using our running example CSV, the generator yields:"),
+        code(
+"""$reader->read('/tmp/upload.csv'):
+
+yield 0 => ['attribute_code','store_view','value','hex_code','sort_order','is_default']
+yield 1 => ['color','default','Red','#FF0000','1','1']
+yield 2 => ['color','fr','Rouge','#FF0000','1','1']
+yield 3 => ['color','en','Red','#FF0000','1','1']
+yield 4 => ['color','default','Blue','#0000FF','2','0']
+yield 5 => ['color','fr','Bleu','#0000FF','2','0']
+yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
+        space(),
+        h3("readHeader()  — convenience method"),
+        code(
+"""public function readHeader(string $filePath): array
+{
+    foreach ($this->read($filePath) as $row) {
+        return $row;  // returns immediately after the first yield
+    }
+    return [];
+}"""),
+        p("Used when only the header row is needed (e.g. to detect swatch type before "
+          "full validation). The generator is discarded after the first row — "
+          "the file is not read further."),
+        PageBreak(),
+
+        h2("Model/Csv/Validator.php"),
+        filepath("Aichouchm_AttributeImport/Model/Csv/Validator.php"),
+        p("Stateless validator. Every method initialises its tracking variables locally "
+          "and returns a value. No state is stored in class properties. This is critical "
+          "because Magento DI creates services as singletons — a stateful validator would "
+          "carry errors from one request into the next."),
+        code(
+"""class Validator
+{
+    public const SWATCH_NONE   = -1;  // plain select / multiselect
+    public const SWATCH_VISUAL =  1;  // visual swatch (hex colour)
+    private const SWATCH_COLUMN = 'hex_code';
+}"""),
+        space(),
+        h3("getSwatchType(string $attributeCode): int"),
+        p("Loads the attribute from the database and reads its <b>additional_data</b> JSON. "
+          "Returns a constant that controls which CSV columns are expected."),
+        code(
+"""public function getSwatchType(string $attributeCode): int
+{
+    $attribute  = $this->attributeFactory->create()
+                       ->loadByCode(Product::ENTITY, $attributeCode);
+    $additional = json_decode($attribute->getAdditionalData() ?? '{}', true);
+
+    return match ($additional['swatch_input_type'] ?? null) {
+        'visual' => self::SWATCH_VISUAL,
+        default  => self::SWATCH_NONE,
+    };
+}
+
+// For attribute 'color' (visual swatch):  returns SWATCH_VISUAL = 1
+// For attribute 'size'  (plain select):   returns SWATCH_NONE   = -1"""),
+        space(),
+        h3("validateHeaders(array $headerRow, int $swatchType): array"),
+        p("Checks the header row against the expected columns for the swatch type. "
+          "Returns early if the column count is wrong — no point checking names if offsets are off."),
+        code(
+"""// Expected for SWATCH_VISUAL:
+// ['attribute_code','store_view','value','hex_code','sort_order','is_default']
+//
+// Expected for SWATCH_NONE:
+// ['attribute_code','store_view','value','sort_order','is_default']
+
+public function validateHeaders(array $headerRow, int $swatchType): array
+{
+    $expected = $this->expectedHeaders($swatchType);
+
+    if (count($headerRow) !== count($expected)) {
+        return ['Invalid column count: expected 6, got 5. Expected: ...'];
+    }
+
+    $errors = [];
+    foreach ($headerRow as $i => $cell) {
+        if (strtolower(trim($cell)) !== $expected[$i]) {
+            $errors[] = 'Column 4: expected "hex_code", got "swatch"';
+        }
+    }
+    return $errors;
+}
+
+// Running example: validateHeaders(['attribute_code','store_view','value',
+//                                   'hex_code','sort_order','is_default'], SWATCH_VISUAL)
+// -> [] (no errors)"""),
+        space(),
+        h3("validateRows(array $rows, string $attributeCode, int $swatchType): array"),
+        p("The most complex method. Loops through all data rows (header excluded) and "
+          "enforces rules that span multiple rows. Uses four tracking variables:"),
+        simple_table(
+            ["Variable", "Type", "Tracks"],
+            [
+                ["$adminValues",     "array",  "All default-store values seen — detects CSV duplicates"],
+                ["$optionStores",    "array",  "Store codes in the current option group — detects duplicate stores"],
+                ["$defaultSelected", "bool",   "Whether any row has is_default=1 — only one allowed"],
+                ["$expectAdminNext", "bool",   "Whether the next row must be a default/admin row"],
+            ],
+            col_widths=[3.5*cm, 2*cm, 11.5*cm]
+        ),
+        space(),
+        p("Step-by-step walk through the running example:"),
+        code(
+"""Row 1: ['color','default','Red','#FF0000','1','1']
+  isAdmin=true  -> new group starts
+  $optionStores = []   (reset for this group)
+  'Red' not in $adminValues -> add it: $adminValues=['Red']
+  sort_order='1'  -> is_numeric OK
+  is_default='1'  -> valid, $defaultSelected=true
+  hex '#FF0000'   -> matches /^#[A-Fa-f0-9]{6}$/ OK
+
+Row 2: ['color','fr','Rouge','#FF0000','1','1']
+  isAdmin=false -> translation row
+  'fr' is a valid Magento store code -> OK
+  'fr' not in $optionStores -> add it: $optionStores=['fr']
+
+Row 3: ['color','en','Red','#FF0000','1','1']
+  isAdmin=false -> translation row
+  'en' is a valid store code -> OK
+  'en' not in $optionStores -> $optionStores=['fr','en']
+
+Row 4: ['color','default','Blue','#0000FF','2','0']
+  isAdmin=true  -> new group starts
+  $optionStores = []   (reset)
+  'Blue' not in $adminValues -> $adminValues=['Red','Blue']
+  is_default='0' -> $defaultSelected stays true, no conflict
+
+Result: [] (empty = valid)"""),
+        callout("good", "Adding a duplicate row ['color','default','Red','#FF0000','4','0'] "
+                "at the end would produce: \"Row 7: Duplicate option value Red within the CSV\". "
+                "The check is O(1) per row — in_array on an already-built array."),
+        PageBreak(),
+    ]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 6 — Import Flow
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("6  Import Flow  (AJAX POST -> Process controller)"), space()]
+    story += [
+        p("After successful Check Data the Import button is enabled. Clicking it sends "
+          "the same multipart POST to the Process controller, which calls "
+          "ImportService::import()."),
+        space(),
+
+        h2("Controller/Adminhtml/Import/Process.php"),
+        filepath("Aichouchm_AttributeImport/Controller/Adminhtml/Import/Process.php"),
+        p("Same structure as Preview: validate request, call service, return JSON. "
+          "The difference is it calls <b>import()</b> instead of <b>validate()</b> "
+          "and returns counts instead of HTML."),
+        code(
+"""public function execute(): Json
+{
+    $result = $this->resultJsonFactory->create();
+    try {
+        $this->assertValidRequest();
+        $attributeCode = $this->getRequest()->getParam('attribute_code');
+        $filePath      = $this->getUploadedFilePath();
+
+        $importResult = $this->importService->import($filePath, $attributeCode);
+
+        return $result->setData([
+            'success'  => $importResult['success'],
+            'messages' => $importResult['messages'],
+            'imported' => $importResult['imported'],
+            'skipped'  => $importResult['skipped'],
+        ]);
+    } catch (Exception $e) {
+        $this->logger->error('Controller error: ' . $e->getMessage());
+        return $result->setData([
+            'success'  => false,
+            'messages' => ['An unexpected error occurred. See attribute_import.log for details.'],
+            'imported' => 0,
+            'skipped'  => 0,
+        ]);
+    }
+}"""),
+        space(),
+
+        h2("Model/ImportService.php"),
+        filepath("Aichouchm_AttributeImport/Model/ImportService.php"),
+        p("The main orchestrator. Implements ImportServiceInterface and coordinates "
+          "StreamingReader, Validator, OptionProcessor, CacheManager, and Logger."),
+        space(),
+        h3("validate(string $filePath, string $attributeCode): array"),
+        code(
+"""public function validate(string $filePath, string $attributeCode): array
+{
+    try {
+        [$swatchType, $allRows] = $this->readAllRows($filePath, $attributeCode);
+
+        // Step 1: validate headers (column count + names)
+        $headerErrors = $this->csvValidator->validateHeaders($allRows[0] ?? [], $swatchType);
+        if (!empty($headerErrors)) {
+            // Wrong columns means row offsets are wrong too — stop immediately
+            return ['is_valid' => false, 'errors' => $headerErrors, 'rows' => []];
+        }
+
+        // Step 2: validate all data rows
+        $dataRows  = array_slice($allRows, 1);
+        $rowErrors = $this->csvValidator->validateRows($dataRows, $attributeCode, $swatchType);
+
+        return [
+            'is_valid' => empty($rowErrors),
+            'errors'   => $rowErrors,
+            'rows'     => $allRows,  // passed back for the preview table
+        ];
+    } catch (Throwable $e) {
+        return ['is_valid' => false, 'errors' => [$e->getMessage()], 'rows' => []];
+    }
+}"""),
+        space(),
+        h3("readAllRows(string $filePath, string $attributeCode): array"),
+        p("Reads all CSV rows into memory. Validation requires cross-row rules (duplicates, "
+          "is_default uniqueness), so the entire file must be in memory at once."),
+        code(
+"""private function readAllRows(string $filePath, string $attributeCode): array
+{
+    return [
+        $this->csvValidator->getSwatchType($attributeCode),
+        // iterator_to_array() drains the generator into a plain array.
+        // false = do not preserve generator keys (gives 0,1,2,... not the line numbers)
+        iterator_to_array($this->streamingReader->read($filePath), false),
+    ];
+}
+
+// Result for the running example:
+// [
+//   SWATCH_VISUAL,   // swatchType
+//   [
+//     ['attribute_code','store_view','value','hex_code','sort_order','is_default'], // row 0
+//     ['color','default','Red','#FF0000','1','1'],   // row 1
+//     ['color','fr','Rouge','#FF0000','1','1'],       // row 2
+//     ...
+//   ]
+// ]"""),
+        space(),
+        h3("import(string $filePath, string $attributeCode): array"),
+        code(
+"""public function import(string $filePath, string $attributeCode): array
+{
+    $this->logger->info('Import started — attribute: ' . $attributeCode);
+
+    try {
+        // 1. Re-validate (safety net: import should never run on bad data)
+        $validation = $this->validate($filePath, $attributeCode);
+        if (!$validation['is_valid']) {
+            foreach ($validation['errors'] as $error) {
+                $this->logger->error('Validation error: ' . $error);
+            }
+            return ['success' => false, 'messages' => $validation['errors'],
+                    'imported' => 0, 'skipped' => 0];
+        }
+
+        // 2. Load existing options once (O(1) lookup per option during processing)
+        $attribute       = $this->attributeRepository->get('catalog_product', $attributeCode);
+        $swatchType      = $this->csvValidator->getSwatchType($attributeCode);
+        $existingOptions = $this->loadExistingOptions((int) $attribute->getAttributeId());
+
+        // 3. Second streaming pass: group rows by option
+        $groups = $this->groupRowsByOption($filePath, $swatchType);
+
+        // 4. Write to DB
+        $result = $this->optionProcessor->processGroups(
+            $groups, $existingOptions, $swatchType, $attribute
+        );
+
+        // 5. Log skipped values
+        foreach ($result['skippedValues'] as $val) {
+            $this->logger->warning('Skipped: "' . $val . '" already exists.');
+        }
+
+        // 6. Flush caches
+        $this->cacheManager->clean(['eav', 'full_page', 'block_html']);
+
+        $summary = 'Import complete. Imported: ' . $result['imported'] .
+                   ', Skipped: ' . $result['skipped'];
+        $this->logger->info($summary);
+
+        return ['success' => true, 'messages' => [$summary],
+                'imported' => $result['imported'], 'skipped' => $result['skipped']];
+
+    } catch (Throwable $e) {
+        $this->logger->error('Unexpected error: ' . $e->getMessage());
+        return ['success' => false,
+                'messages' => ['An unexpected error occurred. Please check the import log.'],
+                'imported' => 0, 'skipped' => 0];
+    }
+}"""),
+        space(),
+        h3("loadExistingOptions(int $attributeId): array"),
+        p("Pre-loads all existing option labels for the attribute at store_id=0 (admin store). "
+          "This is a single DB query. The result is used as a hash map for O(1) duplicate checks — "
+          "no DB call per option during import."),
+        code(
+"""private function loadExistingOptions(int $attributeId): array
+{
+    $connection = $this->resourceConnection->getConnection();
+    $select = $connection->select()
+        ->from(['v' => 'eav_attribute_option_value'], ['value', 'v.option_id'])
+        ->join(['o' => 'eav_attribute_option'], 'v.option_id = o.option_id', [])
+        ->where('o.attribute_id = ?', $attributeId)
+        ->where('v.store_id = ?', 0);  // store_id=0 = admin (global) store
+
+    $result = [];
+    foreach ($connection->fetchAll($select) as $row) {
+        $result[$row['value']] = (int) $row['option_id'];
+    }
+    return $result;
+}
+
+// Returns: ['Red' => 45, 'Blue' => 46]
+// if Red and Blue already exist in the DB."""),
+        space(),
+        h3("groupRowsByOption(string $filePath, int $swatchType): array"),
+        p("Second streaming pass through the file. Groups rows into logical option objects. "
+          "A new group starts every time a default/admin row appears."),
+        code(
+"""private function groupRowsByOption(string $filePath, int $swatchType): array
+{
+    $groups       = [];
+    $currentGroup = null;
+
+    foreach ($this->streamingReader->read($filePath) as $lineNumber => $row) {
+        if ($lineNumber === 0) continue;  // skip header
+
+        $storeCode = strtolower(trim($row[1] ?? ''));
+        $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
+
+        if ($isAdmin) {
+            if ($currentGroup !== null) {
+                $groups[] = $currentGroup;  // save the completed group
+            }
+            $currentGroup = ['admin' => $row, 'stores' => []];
+        } elseif ($currentGroup !== null) {
+            $currentGroup['stores'][] = $row;
+        }
+    }
+
+    if ($currentGroup !== null) {
+        $groups[] = $currentGroup;  // save the last group
+    }
+
+    return $groups;
+}
+
+// Running example result:
+// [
+//   [
+//     'admin'  => ['color','default','Red','#FF0000','1','1'],
+//     'stores' => [
+//       ['color','fr','Rouge','#FF0000','1','1'],
+//       ['color','en','Red','#FF0000','1','1'],
+//     ]
+//   ],
+//   [
+//     'admin'  => ['color','default','Blue','#0000FF','2','0'],
+//     'stores' => [
+//       ['color','fr','Bleu','#0000FF','2','0'],
+//       ['color','en','Blue','#0000FF','2','0'],
+//     ]
+//   ],
+// ]"""),
+        PageBreak(),
+
+        h2("Service/StoreResolver.php"),
+        filepath("Aichouchm_AttributeImport/Service/StoreResolver.php"),
+        p("Maps store codes from the CSV to Magento store_ids for database writes. "
+          "The critical rule: the CSV uses 'default' to mean the admin (global) store, "
+          "which has store_id=0 in Magento's EAV schema."),
+        code(
+"""class StoreResolver
+{
+    // 'default' and 'admin' both mean store_id=0 (the global admin store)
+    // store_id=0 is the fallback used when no store-specific label exists
+
+    public function getStoreId(string $storeCode): int
+    {
+        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+            return 0;
+        }
+        return (int) $this->storeManager->getStore($storeCode)->getId();
+    }
+
+    public function isValidStoreCode(string $storeCode): bool
+    {
+        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+            return true;
+        }
+        return in_array($storeCode, $this->getAllStoreCodes(), true);
+    }
+
+    public function getAllStoreCodes(): array
+    {
+        $codes = [];
+        foreach ($this->storeManager->getStores() as $store) {
+            $codes[] = $store->getCode();
+        }
+        return $codes;  // e.g. ['default', 'fr', 'en']
+    }
+}"""),
+        callout("warn", "StoreManager->getStore('default') returns store_id=1 (the Default "
+                "Store View), NOT store_id=0. Passing 'default' through StoreManager would "
+                "save labels to the wrong store. The explicit alias intercepts 'default'/'admin' "
+                "before reaching StoreManager."),
+        space(),
+
+        h2("Model/Attribute/OptionProcessor.php"),
+        filepath("Aichouchm_AttributeImport/Model/Attribute/OptionProcessor.php"),
+        p("Writes all new options to the database in the minimum number of queries. "
+          "Skips options whose label already exists in $existingOptions."),
+        space(),
+        h3("processGroups() — the core DB write loop"),
+        code(
+"""public function processGroups(
+    array $groups,
+    array $existingOptions,  // ['Red' => 45, 'Blue' => 46] from loadExistingOptions()
+    int $swatchType,
+    AttributeInterface $attribute
+): array {
+    $newOptions = [];  // keyed by 'new_0', 'new_1', etc. (before DB insert)
+    $labelRows  = [];  // flat array of all label rows to batch-insert
+    $swatchRows = [];  // flat array of all swatch rows to batch-insert
+    $defaultKey = null;
+    $skipped    = [];
+
+    [$sortOrderCol, $isDefaultCol] = $this->dataColumnOffsets($swatchType);
+    // SWATCH_VISUAL: [4, 5]  (hex_code at col 3, sort_order at 4, is_default at 5)
+    // SWATCH_NONE:   [3, 4]  (sort_order at 3, is_default at 4)
+
+    foreach ($groups as $group) {
+        $adminRow = $group['admin'];
+        $value    = $adminRow[self::COL_VALUE];   // COL_VALUE = 2
+
+        // O(1) duplicate check using the pre-loaded hash map
+        if (array_key_exists($value, $existingOptions)) {
+            $skipped[] = $value;
+            continue;
+        }
+
+        $key = 'new_' . count($newOptions);  // temporary key before INSERT
+
+        $newOptions[$key] = [
+            'attribute_id' => $attribute->getAttributeId(),
+            'sort_order'   => (int) ($adminRow[$sortOrderCol] ?? 0),
+        ];
+
+        if (($adminRow[$isDefaultCol] ?? '0') === '1') {
+            $defaultKey = $key;  // remember which option is the default
+        }
+
+        // Admin (global) label
+        $labelRows[] = ['key' => $key, 'store_id' => 0, 'value' => $value];
+
+        // Swatch row for visual swatch attributes
+        if ($swatchType !== CsvValidator::SWATCH_NONE) {
+            $swatchRows[] = [
+                'key'      => $key,
+                'store_id' => 0,
+                'type'     => 1,      // 1 = visual hex colour
+                'value'    => $adminRow[self::COL_SWATCH] ?? '',  // COL_SWATCH = 3
+            ];
+        }
+
+        // Per-store-view translation labels
+        foreach ($group['stores'] as $storeRow) {
+            $storeId     = $this->storeResolver->getStoreId($storeRow[self::COL_STORE]);
+            $labelRows[] = ['key' => $key, 'store_id' => $storeId,
+                            'value' => $storeRow[self::COL_VALUE]];
+        }
+    }
+
+    if (!empty($newOptions)) {
+        $this->bulkSave($newOptions, $labelRows, $swatchRows, $defaultKey, $attribute);
+    }
+
+    return [
+        'imported'      => count($newOptions),
+        'skipped'       => count($skipped),
+        'skippedValues' => $skipped,
+    ];
+}"""),
+        space(),
+        h3("bulkSave() — the actual DB writes"),
+        code(
+"""private function bulkSave(
+    array $newOptions, array $labelRows, array $swatchRows,
+    ?string $defaultKey, AttributeInterface $attribute
+): void {
+    $connection = $this->resourceConnection->getConnection();
+
+    // 1. One INSERT per option — required to capture each lastInsertId
+    //    Cannot use insertMultiple here because we need the DB-assigned option_id
+    //    for each row before we can build the label/swatch rows.
+    $keyToOptionId = [];
+    foreach ($newOptions as $key => $optionData) {
+        $connection->insert('eav_attribute_option', $optionData);
+        $keyToOptionId[$key] = (int) $connection->lastInsertId();
+    }
+
+    // 2. ALL labels in ONE query
+    //    Replace temporary 'new_0' keys with real option_ids
+    $labelInserts = [];
+    foreach ($labelRows as $lr) {
+        $labelInserts[] = [
+            'option_id' => $keyToOptionId[$lr['key']],
+            'store_id'  => $lr['store_id'],
+            'value'     => $lr['value'],
+        ];
+    }
+    $connection->insertMultiple('eav_attribute_option_value', $labelInserts);
+
+    // 3. Set is_default on the attribute record if any option had is_default=1
+    if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
+        $connection->update('eav_attribute',
+            ['default_value' => (string) $keyToOptionId[$defaultKey]],
+            ['attribute_id = ?' => $attribute->getAttributeId()]
+        );
+    }
+
+    // 4. ALL swatches in ONE query
+    //    insertOnDuplicate: if (option_id, store_id) already exists, update it
+    if (!empty($swatchRows)) {
+        $swatchInserts = [];
+        foreach ($swatchRows as $sr) {
+            $swatchInserts[] = [
+                'option_id' => $keyToOptionId[$sr['key']],
+                'store_id'  => $sr['store_id'],
+                'type'      => $sr['type'],
+                'value'     => $sr['value'],
+            ];
+        }
+        $connection->insertOnDuplicate('eav_attribute_option_swatch',
+            $swatchInserts, ['type', 'value']);
+    }
+}"""),
+        p("Total DB queries for N new options (each with S store views):"),
+        simple_table(
+            ["Query", "Count", "Description"],
+            [
+                ["INSERT eav_attribute_option",       "N",   "One per new option (needs lastInsertId)"],
+                ["INSERT eav_attribute_option_value",  "1",   "All labels in one batch INSERT"],
+                ["UPDATE eav_attribute",               "0-1", "Only if any option has is_default=1"],
+                ["INSERT eav_attribute_option_swatch", "0-1", "All swatches in one batch INSERT"],
+            ],
+            col_widths=[5.5*cm, 1.5*cm, 10*cm]
+        ),
+        callout("good", "For 200 options with 3 store views: N+2 = 202 queries total. "
+                "Compared to attributeRepository->save() per option which triggers a full "
+                "EAV load + save cycle (~600 queries). Measured ~40x faster on a local Docker stack."),
+        space(),
+        h3("dataColumnOffsets(int $swatchType): array"),
+        code(
+"""private function dataColumnOffsets(int $swatchType): array
+{
+    // With hex_code column:    [0]=attr_code [1]=store_view [2]=value
+    //                          [3]=hex_code  [4]=sort_order [5]=is_default
+    // Without hex_code column: [0]=attr_code [1]=store_view [2]=value
+    //                          [3]=sort_order [4]=is_default
+    return $swatchType !== CsvValidator::SWATCH_NONE ? [4, 5] : [3, 4];
+}"""),
+        PageBreak(),
+    ]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 7 — Preview Block and Template
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("7  Preview Block and Template"), space()]
+    story += [
+        h2("Block/Adminhtml/Import/Preview.php"),
+        filepath("Aichouchm_AttributeImport/Block/Adminhtml/Import/Preview.php"),
+        p("Minimal block — extends Template and exposes one helper method used by the template."),
+        code(
+"""class Preview extends Template
+{
+    public function formatHeader(string $value): string
+    {
+        return ucwords(str_replace('_', ' ', strtolower($value)));
+    }
+}
+
+// Examples:
+// formatHeader('attribute_code') -> 'Attribute Code'
+// formatHeader('hex_code')       -> 'Hex Code'
+// formatHeader('is_default')     -> 'Is Default'"""),
+        space(),
+
+        h2("view/adminhtml/templates/import/preview.phtml"),
+        filepath("Aichouchm_AttributeImport/view/adminhtml/templates/import/preview.phtml"),
+        p("Receives <b>$rows</b> (full CSV as 2D array including header) and <b>$errors</b> "
+          "(validation error strings). If $errors is non-empty, shows red messages. "
+          "If $rows has more than one row (header + at least one data row), renders a table."),
+        code(
+"""<?php if (!empty($errors)): ?>
+    <div class="messages">
+        <?php foreach ($errors as $error): ?>
+            <!-- No inner <div> — avoids Magento's ::before icon pseudo-element -->
+            <div class="message message-error">
+                <?= $block->escapeHtml($error) ?>
+            </div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
+
+<?php if (!empty($rows) && count($rows) > 1): ?>
+    <div class="admin__data-grid-outer-wrap">
+        <table class="data-grid admin__table-primary">
+            <thead>
+                <tr>
+                    <?php foreach ($rows[0] as $header): ?>
+                        <th><?= $block->escapeHtml($block->formatHeader($header)) ?></th>
+                    <?php endforeach; ?>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach (array_slice($rows, 1) as $rowIndex => $row): ?>
+                    <tr class="<?= $rowIndex % 2 === 0 ? '_even-row' : '_odd-row' ?>">
+                        <?php foreach ($row as $cell): ?>
+                            <td><?= $block->escapeHtml($cell) ?></td>
+                        <?php endforeach; ?>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <p class="note">
+        <?= count($rows) - 1 ?> data rows found.
+        <?php if (empty($errors)): ?>
+            <strong>All rows are valid. You can proceed with the import.</strong>
+        <?php endif; ?>
+    </p>
+<?php endif; ?>"""),
+        callout("info", "array_slice($rows, 1) skips row 0 (the header) when building the "
+                "table body. $rows[0] is used only for the header row. "
+                "count($rows) > 1 prevents rendering an empty table if the CSV has only a header."),
+        PageBreak(),
+    ]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 8 — Log Viewer
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("8  Log Viewer"), space()]
+    story += [
+        h2("Controller/Adminhtml/Import/Log.php"),
+        filepath("Aichouchm_AttributeImport/Controller/Adminhtml/Import/Log.php"),
+        p("Standard page controller. Returns a Page result and sets the page title. "
+          "Identical pattern to Index.php."),
+        space(),
+
+        h2("Block/Adminhtml/Log.php"),
+        filepath("Aichouchm_AttributeImport/Block/Adminhtml/Log.php"),
+        p("Reads the log file from the filesystem and returns the lines in reverse order "
+          "(newest first) for display in the admin."),
+        code(
+"""class Log extends Template
+{
+    private const LOG_FILE      = 'log/attribute_import.log';
+    private const DEFAULT_LINES = 200;
+
+    public function getLogLines(int $limit = self::DEFAULT_LINES): array
+    {
+        try {
+            $varDir = $this->filesystem->getDirectoryRead(DirectoryList::VAR_DIR);
+
+            if (!$varDir->isExist(self::LOG_FILE)) {
+                return [];
+            }
+
+            $content = $varDir->readFile(self::LOG_FILE);
+            $lines   = array_reverse(array_filter(explode("\\n", $content)));
+            return array_slice($lines, 0, $limit);
+
+        } catch (\\Throwable) {
+            return [];
+        }
+    }
+
+    public function getLogUrl():    string { return $this->getUrl('attributeimport/import/log'); }
+    public function getImportUrl(): string { return $this->getUrl('attributeimport/import/index'); }
+}"""),
+        p("Key decisions:"),
+        simple_table(
+            ["Decision", "Reason"],
+            [
+                ["LOG_FILE = 'log/attribute_import.log'",
+                 "Path relative to VAR_DIR. Using Magento's Filesystem abstraction instead of "
+                 "fopen() means the path resolves correctly regardless of deployment type (local, cloud)."],
+                ["array_reverse()",
+                 "Newest entries at the top — the admin sees the most recent import immediately "
+                 "without scrolling to the bottom."],
+                ["array_filter()",
+                 "Removes empty strings that appear when explode() splits on a trailing newline "
+                 "at the end of the file."],
+                ["catch Throwable return []",
+                 "If the log file is unreadable (permissions, missing), the page shows an empty "
+                 "state instead of a 500 error."],
+            ],
+            col_widths=[5*cm, 12*cm]
+        ),
+        space(),
+
+        h2("view/adminhtml/templates/import/log.phtml"),
+        filepath("Aichouchm_AttributeImport/view/adminhtml/templates/import/log.phtml"),
+        p("Renders the log lines in a dark monospace terminal-style box. Lines are colour-coded "
+          "by Monolog log level, detected by searching for the level string in the line."),
+        code(
+"""// Monolog line format:
+// [2026-04-15 14:32:01] AttributeImport.INFO: Import started — attribute: color [] []
+// [2026-04-15 14:32:01] AttributeImport.WARNING: Skipped: "Red" already exists. [] []
+// [2026-04-15 14:32:01] AttributeImport.ERROR: Validation error: Row 2... [] []
+
+// Colour detection:
+$colour = '#d4d4d4';                                 // default: light grey
+if (stripos($trimmed, '.ERROR')   !== false) $colour = '#f88585';  // red
+if (stripos($trimmed, '.WARNING') !== false) $colour = '#ffd580';  // amber
+if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
+        simple_table(
+            ["Level", "Colour", "When logged"],
+            [
+                ["INFO",    "Green (#87d7a0)", "Import started; import completed with counts"],
+                ["WARNING", "Amber (#ffd580)", "Option skipped because it already exists in DB"],
+                ["ERROR",   "Red (#f88585)",   "Validation failure; unexpected exception"],
+            ],
+            col_widths=[2.5*cm, 4.5*cm, 10*cm]
+        ),
+        PageBreak(),
+    ]
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 9 — Unit Tests
+    # ─────────────────────────────────────────────────────────────────────────
     story += [h1("9  Unit Tests"), space()]
     story += [
+        p("Tests use PHPUnit 10 with mocks only — no Magento bootstrap, no database. "
+          "All tests run in under 1 second."),
+        space(),
         simple_table(
             ["Test class", "Tests", "What is covered"],
             [
-                ["StreamingReaderTest", "6", "BOM stripping, whitespace trim, missing file exception, empty file, multi-row yield"],
-                ["ValidatorTest", "13", "Header validation, row validation, statelessness, default store alias, duplicate detection"],
-                ["OptionProcessorTest", "5", "New option insert, existing option skip, mixed skip/import, swatch persistence, empty groups"],
+                ["StreamingReaderTest",  "6",  "BOM stripping, whitespace trim, missing file exception, empty file, multi-row yield, readHeader()"],
+                ["ValidatorTest",        "13", "Header validation, row validation, statelessness, default store alias, duplicate detection, invalid sort_order, multiple is_default=1"],
+                ["OptionProcessorTest",  "5",  "New option insert, existing option skip, mixed skip/import, swatch persistence, empty groups"],
             ],
             col_widths=[5.5*cm, 1.5*cm, 10*cm]
         ),
@@ -851,96 +1728,137 @@ Step 2 -- Import  (AJAX POST -> /attributeimport/import/process)
    app/code/Aichouchm/AttributeImport/Test/Unit" """),
         space(),
         h2("Key Test: Validator Statelessness"),
+        p("This test verifies that validating two files in the same request does not carry "
+          "errors from the first file into the second. It would fail if validateRows() "
+          "stored $errors in a class property."),
         code(
 """public function testValidatorIsStateless(): void
 {
     $rows = [['color', 'admin', 'Red', '1', '1']];
-    // First call
+
+    // Call once (produces no errors)
     $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
-    // Second call: must still be valid (no leftover state from first call)
+
+    // Call again — must still produce no errors
+    // If $errors were a class property, it would be empty from the first call
+    // but the real risk is the opposite: if $defaultSelected or $adminValues
+    // leaked from a previous call with errors, this valid call could inherit them.
     $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
     $this->assertEmpty($errors);
+}"""),
+        space(),
+        h2("Key Test: Swatch Data Persistence"),
+        p("Verifies that insertOnDuplicate is called when importing with SWATCH_VISUAL."),
+        code(
+"""public function testSwatchDataIsPersistedForVisualSwatch(): void
+{
+    $this->connection->method('insert')->willReturn(1);
+
+    // Assert that insertOnDuplicate is called exactly once (batch swatch insert)
+    $this->connection->expects($this->once())
+        ->method('insertOnDuplicate');
+
+    $groups = [[
+        'admin'  => ['color', 'admin', 'Red', '#FF0000', '1', '1'],
+        'stores' => [],
+    ]];
+
+    $this->processor->processGroups($groups, [], Validator::SWATCH_VISUAL, $this->attribute);
 }"""),
         PageBreak(),
     ]
 
-    # Section 10
-    story += [h1("10  Decision Summary"), space()]
+    # ─────────────────────────────────────────────────────────────────────────
+    # SECTION 10 — Refactoring Log
+    # ─────────────────────────────────────────────────────────────────────────
+    story += [h1("10  Refactoring Log"), space()]
     story += [
-        comparison_table([
-            ["CSV reading",
-             "getData() -- full file into RAM array",
-             "fgetcsv generator -- O(1) memory, any file size"],
-            ["Validator state",
-             "Errors stored in private property (singleton bug)",
-             "Stateless -- returns string[] errors, no mutation of $this"],
-            ["DB writes",
-             "attributeRepository->save() per option (~N x M queries)",
-             "insertMultiple + insertOnDuplicate (N+2 queries total)"],
-            ["Store 'default'",
-             "StoreManager lookup -> store_id=1 (wrong)",
-             "Explicit alias: 'default'/'admin' -> store_id=0 (correct)"],
-            ["Duplicate options",
-             "Overwrites existing options silently",
-             "Pre-loads existing, skips with WARNING log entry"],
-            ["Service contract",
-             "Controller depends on concrete Import class",
-             "ImportServiceInterface -- mockable, DI-swappable"],
-            ["Logger",
-             "Custom Helper/Logger with manual timestamps",
-             "Monolog virtual type via di.xml, fully PSR-3 compliant"],
-        ]),
-        space(1.5),
-        callout("good", "All seven improvements are independently testable. The test suite "
-                "validates each concern in isolation without requiring a running Magento instance."),
+        p("Changes made during development to simplify the code. Each entry explains "
+          "what was removed and why."),
+        space(),
+        simple_table(
+            ["What", "Before", "After", "Why"],
+            [
+                ["Swatch column aliases",
+                 "SWATCH_COL_NAMES = ['swatch','hex_code','swatch_value','color']",
+                 "SWATCH_COLUMN = 'hex_code'",
+                 "Only hex_code is documented. Other aliases were never in the spec."],
+                ["validateHeaders() loop",
+                 "if (is_array($exp)) { in_array(...) } elseif ($cell !== $exp) ...",
+                 "if ($cell !== $expected[$i]) ...",
+                 "Once SWATCH_COL_NAMES became a single string, the is_array branch became dead code."],
+                ["Text swatch support",
+                 "SWATCH_TEXT constant, SWATCH_TEXT branch in processGroups(), detectSwatchType() returning 0/1/2",
+                 "Removed entirely",
+                 "Not in the functional spec. The spec shows only hex colour swatches."],
+                ["Image URL swatches",
+                 "isValidSwatchValue() checked both hex and URL regex",
+                 "Only hex /^#[A-Fa-f0-9]{6}$/ checked",
+                 "Not in the spec. Simplifies validation."],
+                ["Store code '0' alias",
+                 "in_array(..., ['admin','default','0'])",
+                 "in_array(..., ['admin','default'])",
+                 "Nobody writes '0' as a store code in a CSV. Undocumented edge case."],
+                ["Log block DI injection",
+                 "$logFile injected via di.xml as '/var/log/attribute_import.log', then stripped with str_replace('/var/','',...)",
+                 "private const LOG_FILE = 'log/attribute_import.log'",
+                 "Circular: injecting /var/log/x only to strip /var/ immediately. Constant is simpler."],
+                ["readAllRows() loop",
+                 "foreach ($reader->read()) as $row) { $rows[] = $row; }",
+                 "iterator_to_array($reader->read(), false)",
+                 "PHP built-in that does the same thing in one line."],
+                ["AJAX URL generation",
+                 "toRelativePath() stripped scheme/host/port from getUrl()",
+                 "getUrl() used directly",
+                 "toRelativePath() was a workaround for a dev environment port mismatch. Not a module concern."],
+            ],
+            col_widths=[3.5*cm, 4.5*cm, 3.5*cm, 5.5*cm]
+        ),
         space(2),
         hr(),
         space(0.5),
         Paragraph(
-            "Aichouchm_AttributeImport  |  v1.0.0  |  MIT License  |  Mehdi Aichouch  |  " +
-            datetime.date.today().strftime("%B %d, %Y"),
+            "Aichouchm_AttributeImport  |  MIT License  |  Mehdi Aichouch",
             S("foot", fontSize=8, textColor=GREY, alignment=TA_CENTER)
         ),
     ]
 
-    return story
+    # Flatten: code() may return a list when a block was too tall for one page
+    flat = []
+    for item in story:
+        if isinstance(item, list):
+            flat.extend(item)
+        else:
+            flat.append(item)
+    return flat
 
-# ── Build ─────────────────────────────────────────────────────────────────────
-def build():
-    HEADER_H = 1.8 * cm
-    FOOTER_H = 1.8 * cm
-
-    cover_frame = Frame(
-        0, 0, PAGE_W, PAGE_H,
-        leftPadding=MARGIN, rightPadding=MARGIN,
-        topPadding=0, bottomPadding=0, id="cover"
-    )
-    body_frame = Frame(
-        MARGIN, FOOTER_H, BODY_W, PAGE_H - HEADER_H - FOOTER_H,
-        leftPadding=0, rightPadding=0,
-        topPadding=8, bottomPadding=8, id="body"
-    )
-
-    cover_tpl = PageTemplate(id="Cover", frames=[cover_frame], onPage=on_cover)
-    body_tpl  = PageTemplate(id="Body",  frames=[body_frame],  onPage=on_page)
-
+# ── Build PDF ─────────────────────────────────────────────────────────────────
+def main():
     doc = BaseDocTemplate(
         OUTPUT,
         pagesize=A4,
-        pageTemplates=[cover_tpl, body_tpl],
-        title="Aichouchm_AttributeImport -- Technical Strategy & Decision Record",
-        author="Mehdi Aichouch",
         leftMargin=MARGIN, rightMargin=MARGIN,
-        topMargin=HEADER_H, bottomMargin=FOOTER_H,
+        topMargin=2.0*cm, bottomMargin=2.5*cm,
     )
 
-    story = cover_page()
-    story.append(NextPageTemplate("Body"))
+    cover_frame  = Frame(0, 0, PAGE_W, PAGE_H, leftPadding=0, rightPadding=0,
+                         topPadding=0, bottomPadding=0)
+    body_frame   = Frame(MARGIN, 2.5*cm, BODY_W, PAGE_H - 4.0*cm,
+                         leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+
+    doc.addPageTemplates([
+        PageTemplate(id="cover", frames=[cover_frame], onPage=on_cover),
+        PageTemplate(id="body",  frames=[body_frame],  onPage=on_page),
+    ])
+
+    story = []
+    story += cover_page()
+    story.append(NextPageTemplate("body"))
     story.append(PageBreak())
     story += build_body()
 
     doc.build(story)
-    print("PDF written to: " + OUTPUT)
+    print("Generated:", OUTPUT)
 
 if __name__ == "__main__":
-    build()
+    main()

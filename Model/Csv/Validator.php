@@ -13,7 +13,7 @@ class Validator
     public const SWATCH_NONE   = -1;
     public const SWATCH_VISUAL =  1;
 
-    private const SWATCH_COL_NAMES = ['hex_code'];
+    private const SWATCH_COLUMN = 'hex_code';
 
     public function __construct(
         private readonly StoreResolver    $storeResolver,
@@ -51,16 +51,9 @@ class Validator
         }
 
         foreach ($headerRow as $i => $cell) {
-            $cell = strtolower(trim($cell));
-            $exp  = $expected[$i];
-
-            if (is_array($exp)) {
-                if (!in_array($cell, $exp, true)) {
-                    $errors[] = (string) __('Column %1: expected one of "%2", got "%3"',
-                        $i + 1, implode('", "', $exp), $cell);
-                }
-            } elseif ($cell !== $exp) {
-                $errors[] = (string) __('Column %1: expected "%2", got "%3"', $i + 1, $exp, $cell);
+            if (strtolower(trim($cell)) !== $expected[$i]) {
+                $errors[] = (string) __('Column %1: expected "%2", got "%3"',
+                    $i + 1, $expected[$i], $cell);
             }
         }
 
@@ -169,7 +162,7 @@ class Validator
     {
         $base = ['attribute_code', 'store_view', 'value'];
         if ($swatchType !== self::SWATCH_NONE) {
-            return array_merge($base, [self::SWATCH_COL_NAMES, 'sort_order', 'is_default']);
+            return array_merge($base, [self::SWATCH_COLUMN, 'sort_order', 'is_default']);
         }
         return array_merge($base, ['sort_order', 'is_default']);
     }

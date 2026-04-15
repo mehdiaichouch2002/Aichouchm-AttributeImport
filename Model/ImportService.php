@@ -106,12 +106,10 @@ class ImportService implements ImportServiceInterface
 
     private function readAllRows(string $filePath, string $attributeCode): array
     {
-        $swatchType = $this->csvValidator->getSwatchType($attributeCode);
-        $rows       = [];
-        foreach ($this->streamingReader->read($filePath) as $row) {
-            $rows[] = $row;
-        }
-        return [$swatchType, $rows];
+        return [
+            $this->csvValidator->getSwatchType($attributeCode),
+            iterator_to_array($this->streamingReader->read($filePath), false),
+        ];
     }
 
     private function groupRowsByOption(string $filePath, int $swatchType): array
