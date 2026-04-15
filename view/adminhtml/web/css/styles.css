@@ -13,3 +13,7 @@
 #preview-section .admin__data-grid-outer-wrap {
     overflow-x: auto;
 }
+
+#preview-section .message::before {
+    display: none;
+}
