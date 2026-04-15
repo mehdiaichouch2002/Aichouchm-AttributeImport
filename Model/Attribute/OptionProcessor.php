@@ -67,7 +67,7 @@ class OptionProcessor
                 $swatchRows[] = [
                     'key'      => $key,
                     'store_id' => 0,
-                    'type'     => $this->detectSwatchType($swatchVal),
+                    'type'     => 1,
                     'value'    => $swatchVal,
                 ];
             }
@@ -75,15 +75,6 @@ class OptionProcessor
             foreach ($group['stores'] as $storeRow) {
                 $storeId     = $this->storeResolver->getStoreId($storeRow[self::COL_STORE]);
                 $labelRows[] = ['key' => $key, 'store_id' => $storeId, 'value' => $storeRow[self::COL_VALUE]];
-
-                if ($swatchType === CsvValidator::SWATCH_TEXT) {
-                    $swatchRows[] = [
-                        'key'      => $key,
-                        'store_id' => $storeId,
-                        'type'     => 0,
-                        'value'    => $storeRow[self::COL_SWATCH] ?? $storeRow[self::COL_VALUE],
-                    ];
-                }
             }
         }
 
@@ -140,18 +131,6 @@ class OptionProcessor
             }
             $connection->insertOnDuplicate($swatchTable, $rows, ['type', 'value']);
         }
-    }
-
-    private function detectSwatchType(string $value): int
-    {
-        $value = trim($value);
-        if (preg_match('/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $value)) {
-            return 1;
-        }
-        if (preg_match('/^(https?:\/\/|\/\/|\/|\.\/).*\.(jpg|jpeg|png|gif|svg|webp)$/i', $value)) {
-            return 2;
-        }
-        return 0;
     }
 
     private function dataColumnOffsets(int $swatchType): array

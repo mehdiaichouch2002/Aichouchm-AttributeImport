@@ -11,10 +11,9 @@ use Magento\Catalog\Model\ResourceModel\Eav\AttributeFactory;
 class Validator
 {
     public const SWATCH_NONE   = -1;
-    public const SWATCH_TEXT   =  0;
     public const SWATCH_VISUAL =  1;
 
-    private const SWATCH_COL_NAMES = ['swatch', 'hex_code'];
+    private const SWATCH_COL_NAMES = ['hex_code'];
 
     public function __construct(
         private readonly StoreResolver    $storeResolver,
@@ -28,7 +27,6 @@ class Validator
 
         return match ($additional['swatch_input_type'] ?? null) {
             'visual' => self::SWATCH_VISUAL,
-            'text'   => self::SWATCH_TEXT,
             default  => self::SWATCH_NONE,
         };
     }
@@ -178,13 +176,6 @@ class Validator
 
     private function isValidSwatchValue(string $value): bool
     {
-        $value = trim($value);
-        if (preg_match('/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $value)) {
-            return true;
-        }
-        if (preg_match('/^(https?:\/\/|\/\/|\/|\.\/).*\.(jpg|jpeg|png|gif|svg|webp)$/i', $value)) {
-            return true;
-        }
-        return false;
+        return (bool) preg_match('/^#[A-Fa-f0-9]{6}$/', trim($value));
     }
 }
