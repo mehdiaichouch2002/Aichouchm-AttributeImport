@@ -25,13 +25,12 @@ $lines = $block->getLogLines(300);
                 $trimmed = trim($line);
                 if ($trimmed === '') continue;
 
-                // Colour-code by log level
-                $colour = '#d4d4d4'; // default
-                if (stripos($trimmed, '.ERROR') !== false || stripos($trimmed, '] error') !== false) {
+                $colour = '#d4d4d4';
+                if (stripos($trimmed, '.ERROR') !== false) {
                     $colour = '#f88585';
-                } elseif (stripos($trimmed, '.WARNING') !== false || stripos($trimmed, '] warning') !== false) {
+                } elseif (stripos($trimmed, '.WARNING') !== false) {
                     $colour = '#ffd580';
-                } elseif (stripos($trimmed, '.INFO') !== false || stripos($trimmed, '] info') !== false) {
+                } elseif (stripos($trimmed, '.INFO') !== false) {
                     $colour = '#87d7a0';
                 }
                 ?>

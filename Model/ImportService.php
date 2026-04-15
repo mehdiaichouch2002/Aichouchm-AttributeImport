@@ -125,7 +125,7 @@ class ImportService implements ImportServiceInterface
             }
 
             $storeCode = strtolower(trim($row[1] ?? ''));
-            $isAdmin   = in_array($storeCode, ['admin', 'default', '0'], true);
+            $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
 
             if ($isAdmin) {
                 if ($currentGroup !== null) {

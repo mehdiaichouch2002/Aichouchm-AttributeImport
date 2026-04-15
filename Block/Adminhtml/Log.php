@@ -10,12 +10,12 @@ use Magento\Framework\Filesystem;
 
 class Log extends Template
 {
+    private const LOG_FILE      = 'log/attribute_import.log';
     private const DEFAULT_LINES = 200;
 
     public function __construct(
         Template\Context             $context,
         private readonly Filesystem  $filesystem,
-        private readonly string      $logFile = '/var/log/attribute_import.log',
         array $data = []
     ) {
         parent::__construct($context, $data);
@@ -24,15 +24,13 @@ class Log extends Template
     public function getLogLines(int $limit = self::DEFAULT_LINES): array
     {
         try {
-            $varDir  = $this->filesystem->getDirectoryRead(DirectoryList::VAR_DIR);
-            // Strip leading slash and var/ prefix since we're already in VAR_DIR
-            $relPath = ltrim(str_replace('/var/', '', $this->logFile), '/');
+            $varDir = $this->filesystem->getDirectoryRead(DirectoryList::VAR_DIR);
 
-            if (!$varDir->isExist($relPath)) {
+            if (!$varDir->isExist(self::LOG_FILE)) {
                 return [];
             }
 
-            $content = $varDir->readFile($relPath);
+            $content = $varDir->readFile(self::LOG_FILE);
             $lines   = array_reverse(array_filter(explode("\n", $content)));
 
             return array_slice($lines, 0, $limit);

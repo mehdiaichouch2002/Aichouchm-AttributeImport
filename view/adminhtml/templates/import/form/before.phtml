@@ -114,14 +114,14 @@ require(['jquery'], function ($) {
         },
 
         showMessage: function (text, type) {
-            var el = $('#import-notification');
-            el.removeClass('import-error import-success hidden')
-              .addClass(type === 'success' ? 'import-success' : 'import-error')
-              .html('<span>' + text + '</span>');
+            $('#import-notification')
+                .removeClass('hidden message-error message-success')
+                .addClass('message ' + (type === 'success' ? 'message-success' : 'message-error'))
+                .html('<div>' + text + '</div>');
         },
 
         hideMessage: function () {
-            $('#import-notification').addClass('hidden').html('');
+            $('#import-notification').addClass('hidden').removeClass('message message-error message-success').html('');
         }
     };
 });

@@ -1,57 +1,15 @@
-#import-notification {
-    display: none !important;
-    margin: 1rem 0;
-    padding: .8rem 1.2rem;
-    border-radius: 3px;
-    font-size: 1.4rem;
-    line-height: 1.5;
-}
-
-#import-notification.import-error {
-    display: block !important;
-    background: #fdf0f0;
-    border-left: 4px solid #e22626;
-    color: #b30000;
-}
-
-#import-notification.import-success {
-    display: block !important;
-    background: #f0f9f0;
-    border-left: 4px solid #006400;
-    color: #006400;
-}
-
 #base_fieldset > .messages {
     display: none !important;
+}
+
+#import-notification {
+    margin: 1rem 0;
 }
 
 #preview-section {
     margin-top: 2rem;
 }
 
-#preview-section #validation-heading.hidden {
-    display: none;
-}
-
 #preview-section .admin__data-grid-outer-wrap {
     overflow-x: auto;
-}
-
-#preview-section .message {
-    padding: .75rem 1rem;
-    margin-bottom: .5rem;
-    border-radius: 3px;
-    font-size: 1.4rem;
-}
-
-#preview-section .message.message-error {
-    background: #fdf0f0;
-    border-left: 4px solid #e22626;
-    color: #b30000;
-}
-
-#preview-section .message.message-success {
-    background: #f0f9f0;
-    border-left: 4px solid #006400;
-    color: #006400;
 }

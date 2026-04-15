@@ -14,7 +14,7 @@ class Validator
     public const SWATCH_TEXT   =  0;
     public const SWATCH_VISUAL =  1;
 
-    private const SWATCH_COL_NAMES = ['swatch', 'hex_code', 'swatch_value', 'color'];
+    private const SWATCH_COL_NAMES = ['swatch', 'hex_code'];
 
     public function __construct(
         private readonly StoreResolver    $storeResolver,
@@ -159,7 +159,7 @@ class Validator
 
     private function isAdminStoreCode(string $code): bool
     {
-        return in_array(strtolower($code), ['admin', 'default', '0'], true);
+        return in_array(strtolower($code), ['admin', 'default'], true);
     }
 
     private function dataColumnOffsets(int $swatchType): array

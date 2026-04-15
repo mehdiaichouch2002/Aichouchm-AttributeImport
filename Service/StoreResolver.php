@@ -18,7 +18,7 @@ class StoreResolver
      */
     public function getStoreId(string $storeCode): int
     {
-        if (in_array(strtolower($storeCode), ['admin', 'default', '0'], true)) {
+        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
             return 0;
         }
         return (int) $this->storeManager->getStore($storeCode)->getId();
@@ -35,7 +35,7 @@ class StoreResolver
 
     public function isValidStoreCode(string $storeCode): bool
     {
-        if (in_array(strtolower($storeCode), ['admin', 'default', '0'], true)) {
+        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
             return true;
         }
         return in_array($storeCode, $this->getAllStoreCodes(), true);

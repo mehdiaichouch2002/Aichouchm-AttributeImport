@@ -34,12 +34,6 @@
         </arguments>
     </type>
 
-    <type name="Aichouchm\AttributeImport\Block\Adminhtml\Log">
-        <arguments>
-            <argument name="logFile" xsi:type="string">/var/log/attribute_import.log</argument>
-        </arguments>
-    </type>
-
     <!-- ── Service contract binding ── -->
     <preference for="Aichouchm\AttributeImport\Api\ImportServiceInterface"
                 type="Aichouchm\AttributeImport\Model\ImportService"/>
