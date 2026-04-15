@@ -33,7 +33,7 @@ class ImportService implements ImportServiceInterface
         try {
             [$swatchType, $allRows] = $this->readAllRows($filePath, $attributeCode);
 
-            $headerErrors = $this->csvValidator->validateHeaders($allRows[0] ?? [], $swatchType);
+            $headerErrors = $this->csvValidator->validateHeaders($allRows[0] ?? []);
             if (!empty($headerErrors)) {
                 return ['is_valid' => false, 'errors' => $headerErrors, 'rows' => []];
             }

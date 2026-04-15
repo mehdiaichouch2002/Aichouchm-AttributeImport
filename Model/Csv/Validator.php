@@ -13,19 +13,16 @@ class Validator
     public const SWATCH_NONE   = -1;
     public const SWATCH_VISUAL =  1;
 
-    // CSV column indexes — shared by Validator, OptionProcessor, ImportService
+    // Unified 6-column CSV format (hex_code is always present; leave empty for non-visual attributes)
+    // attribute_code | store_view | value | hex_code | sort_order | is_default
     public const COL_ATTRIBUTE_CODE = 0;
     public const COL_STORE_VIEW     = 1;
     public const COL_VALUE          = 2;
-    public const COL_SWATCH         = 3; // only present when SWATCH_VISUAL
+    public const COL_SWATCH         = 3;
+    public const COL_SORT_ORDER     = 4;
+    public const COL_IS_DEFAULT     = 5;
 
-    // sort_order / is_default shift right by one when the hex_code column is present
-    public const COL_SORT_ORDER_PLAIN   = 3; // SWATCH_NONE
-    public const COL_IS_DEFAULT_PLAIN   = 4;
-    public const COL_SORT_ORDER_SWATCH  = 4; // SWATCH_VISUAL
-    public const COL_IS_DEFAULT_SWATCH  = 5;
-
-    private const SWATCH_COLUMN = 'hex_code';
+    private const EXPECTED_HEADERS = ['attribute_code', 'store_view', 'value', 'hex_code', 'sort_order', 'is_default'];
 
     public function __construct(
         private readonly StoreResolver    $storeResolver,
@@ -47,25 +44,23 @@ class Validator
      * @param string[] $headerRow
      * @return string[]
      */
-    public function validateHeaders(array $headerRow, int $swatchType): array
+    public function validateHeaders(array $headerRow): array
     {
-        $expected = $this->expectedHeaders($swatchType);
-        $errors   = [];
-
-        $expectedCount = count($expected);
+        $expectedCount = count(self::EXPECTED_HEADERS);
         $actualCount   = count($headerRow);
 
         if ($actualCount !== $expectedCount) {
             return [
                 (string) __('Invalid column count: expected %1, got %2. Expected columns: %3',
-                    $expectedCount, $actualCount, implode(', ', $expected))
+                    $expectedCount, $actualCount, implode(', ', self::EXPECTED_HEADERS))
             ];
         }
 
+        $errors = [];
         foreach ($headerRow as $i => $cell) {
-            if (strtolower(trim($cell)) !== $expected[$i]) {
+            if (strtolower(trim($cell)) !== self::EXPECTED_HEADERS[$i]) {
                 $errors[] = (string) __('Column %1: expected "%2", got "%3"',
-                    $i + 1, $expected[$i], $cell);
+                    $i + 1, self::EXPECTED_HEADERS[$i], $cell);
             }
         }
 
@@ -83,8 +78,6 @@ class Validator
         $optionStores    = [];
         $defaultSelected = false;
         $expectAdminNext = true;
-
-        [$sortOrderCol, $isDefaultCol] = $this->dataColumnOffsets($swatchType);
 
         foreach ($rows as $index => $row) {
             $rowNum    = $index + 2;
@@ -117,12 +110,12 @@ class Validator
                 }
                 $adminValues[] = $value;
 
-                if (!is_numeric($row[$sortOrderCol] ?? '')) {
+                if (!is_numeric($row[self::COL_SORT_ORDER] ?? '')) {
                     $errors[] = (string) __('Row %1: sort_order must be a number, got "%2".',
-                        $rowNum, $row[$sortOrderCol] ?? '');
+                        $rowNum, $row[self::COL_SORT_ORDER] ?? '');
                 }
 
-                $isDefaultVal = $row[$isDefaultCol] ?? '';
+                $isDefaultVal = $row[self::COL_IS_DEFAULT] ?? '';
                 if (!in_array($isDefaultVal, ['0', '1'], true)) {
                     $errors[] = (string) __('Row %1: is_default must be 0 or 1, got "%2".', $rowNum, $isDefaultVal);
                 }
@@ -136,8 +129,10 @@ class Validator
 
                 if ($swatchType === self::SWATCH_VISUAL) {
                     $swatchVal = $row[self::COL_SWATCH] ?? '';
-                    if (!$this->isValidSwatchValue($swatchVal)) {
-                        $errors[] = (string) __('Row %1: swatch value "%2" is not a valid hex color or image URL.',
+                    if ($swatchVal === '') {
+                        $errors[] = (string) __('Row %1: hex_code is required for visual swatch attributes.', $rowNum);
+                    } elseif (!$this->isValidSwatchValue($swatchVal)) {
+                        $errors[] = (string) __('Row %1: hex_code "%2" is not a valid hex colour (expected #RRGGBB).',
                             $rowNum, $swatchVal);
                     }
                 }
@@ -167,22 +162,6 @@ class Validator
     private function isAdminStoreCode(string $code): bool
     {
         return in_array(strtolower($code), ['admin', 'default'], true);
-    }
-
-    private function dataColumnOffsets(int $swatchType): array
-    {
-        return $swatchType !== self::SWATCH_NONE
-            ? [self::COL_SORT_ORDER_SWATCH, self::COL_IS_DEFAULT_SWATCH]
-            : [self::COL_SORT_ORDER_PLAIN,  self::COL_IS_DEFAULT_PLAIN];
-    }
-
-    private function expectedHeaders(int $swatchType): array
-    {
-        $base = ['attribute_code', 'store_view', 'value'];
-        if ($swatchType !== self::SWATCH_NONE) {
-            return array_merge($base, [self::SWATCH_COLUMN, 'sort_order', 'is_default']);
-        }
-        return array_merge($base, ['sort_order', 'is_default']);
     }
 
     private function isValidSwatchValue(string $value): bool

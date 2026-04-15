@@ -1009,13 +1009,25 @@ yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
 {
     public const SWATCH_NONE   = -1;  // plain select / multiselect / text swatch
     public const SWATCH_VISUAL =  1;  // visual swatch (hex colour per option)
-    private const SWATCH_COLUMN = 'hex_code';
+
+    // Unified 6-column CSV — hex_code is always present; leave empty for non-visual attributes
+    // attribute_code | store_view | value | hex_code | sort_order | is_default
+    public const COL_ATTRIBUTE_CODE = 0;
+    public const COL_STORE_VIEW     = 1;
+    public const COL_VALUE          = 2;
+    public const COL_SWATCH         = 3;
+    public const COL_SORT_ORDER     = 4;
+    public const COL_IS_DEFAULT     = 5;
+
+    private const EXPECTED_HEADERS = [
+        'attribute_code','store_view','value','hex_code','sort_order','is_default'
+    ];
 }"""),
         space(),
         h3("getSwatchType(string $attributeCode): int"),
         p("Loads the attribute from the database and reads its <b>additional_data</b> JSON. "
-          "Returns a constant that controls which CSV columns are expected and whether a "
-          "row must be written to <b>eav_attribute_option_swatch</b>."),
+          "Returns a constant that controls whether <b>hex_code</b> must be validated and "
+          "whether a row must be written to <b>eav_attribute_option_swatch</b>."),
         p("Important: all swatch attributes (visual and text) store "
           "<b>frontend_input = 'select'</b> in the database — the swatch type is kept "
           "separately in the <b>additional_data</b> JSON column of <b>catalog_eav_attribute</b>. "
@@ -1038,44 +1050,41 @@ yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
     $additional = json_decode($attribute->getAdditionalData() ?? '{}', true);
 
     return match ($additional['swatch_input_type'] ?? null) {
-        'visual' => self::SWATCH_VISUAL,   // hex_code column required in CSV
-        default  => self::SWATCH_NONE,     // no hex_code column — plain select, multiselect, or text swatch
+        'visual' => self::SWATCH_VISUAL,  // hex_code must be a valid #RRGGBB
+        default  => self::SWATCH_NONE,    // hex_code column exists but is ignored
     };
 }
 
-// color   → additional_data = {"swatch_input_type":"visual"} → SWATCH_VISUAL  → 6-column CSV
-// size    → additional_data = {"swatch_input_type":"text"}   → SWATCH_NONE    → 5-column CSV
-// material→ additional_data = NULL                           → SWATCH_NONE    → 5-column CSV"""),
+// color    → {"swatch_input_type":"visual"} → SWATCH_VISUAL → hex validated
+// size     → {"swatch_input_type":"text"}   → SWATCH_NONE   → hex ignored
+// material → NULL                           → SWATCH_NONE   → hex ignored"""),
         space(),
-        h3("validateHeaders(array $headerRow, int $swatchType): array"),
-        p("Checks the header row against the expected columns for the swatch type. "
+        h3("validateHeaders(array $headerRow): array"),
+        p("Checks the header row against the single fixed format. "
           "Returns early if the column count is wrong — no point checking names if offsets are off."),
         code(
-"""// Expected for SWATCH_VISUAL:
+"""// One format for all attribute types:
 // ['attribute_code','store_view','value','hex_code','sort_order','is_default']
 //
-// Expected for SWATCH_NONE:
-// ['attribute_code','store_view','value','sort_order','is_default']
+// For visual swatch:  hex_code filled  → color,default,Red,#FF0000,1,1
+// For plain select:   hex_code empty   → material,default,Cotton,,1,1
 
-public function validateHeaders(array $headerRow, int $swatchType): array
+public function validateHeaders(array $headerRow): array
 {
-    $expected = $this->expectedHeaders($swatchType);
-
-    if (count($headerRow) !== count($expected)) {
-        return ['Invalid column count: expected 6, got 5. Expected: ...'];
+    if (count($headerRow) !== count(self::EXPECTED_HEADERS)) {
+        return ['Invalid column count: expected 6, got N. Expected: ...'];
     }
 
     $errors = [];
     foreach ($headerRow as $i => $cell) {
-        if (strtolower(trim($cell)) !== $expected[$i]) {
+        if (strtolower(trim($cell)) !== self::EXPECTED_HEADERS[$i]) {
             $errors[] = 'Column 4: expected "hex_code", got "swatch"';
         }
     }
     return $errors;
 }
 
-// Running example: validateHeaders(['attribute_code','store_view','value',
-//                                   'hex_code','sort_order','is_default'], SWATCH_VISUAL)
+// Running example: validateHeaders(['attribute_code','store_view','value','hex_code','sort_order','is_default'])
 // -> [] (no errors)"""),
         space(),
         h3("validateRows(array $rows, string $attributeCode, int $swatchType): array"),
@@ -1181,8 +1190,8 @@ Result: [] (empty = valid)"""),
     try {
         [$swatchType, $allRows] = $this->readAllRows($filePath, $attributeCode);
 
-        // Step 1: validate headers (column count + names)
-        $headerErrors = $this->csvValidator->validateHeaders($allRows[0] ?? [], $swatchType);
+        // Step 1: validate headers (column count + names — always 6 columns)
+        $headerErrors = $this->csvValidator->validateHeaders($allRows[0] ?? []);
         if (!empty($headerErrors)) {
             // Wrong columns means row offsets are wrong too — stop immediately
             return ['is_valid' => false, 'errors' => $headerErrors, 'rows' => []];
@@ -1416,13 +1425,9 @@ Result: [] (empty = valid)"""),
     $defaultKey = null;
     $skipped    = [];
 
-    [$sortOrderCol, $isDefaultCol] = $this->dataColumnOffsets($swatchType);
-    // SWATCH_VISUAL: [4, 5]  (hex_code at col 3, sort_order at 4, is_default at 5)
-    // SWATCH_NONE:   [3, 4]  (sort_order at 3, is_default at 4)
-
     foreach ($groups as $group) {
         $adminRow = $group['admin'];
-        $value    = $adminRow[self::COL_VALUE];   // COL_VALUE = 2
+        $value    = $adminRow[CsvValidator::COL_VALUE];   // col 2
 
         // O(1) duplicate check using the pre-loaded hash map
         if (array_key_exists($value, $existingOptions)) {
@@ -1434,29 +1439,29 @@ Result: [] (empty = valid)"""),
 
         $newOptions[$key] = [
             'attribute_id' => $attribute->getAttributeId(),
-            'sort_order'   => (int) ($adminRow[$sortOrderCol] ?? 0),
+            'sort_order'   => (int) ($adminRow[CsvValidator::COL_SORT_ORDER] ?? 0),  // col 4
         ];
 
-        if (($adminRow[$isDefaultCol] ?? '0') === '1') {
+        if (($adminRow[CsvValidator::COL_IS_DEFAULT] ?? '0') === '1') {  // col 5
             $defaultKey = $key;  // remember which option is the default
         }
 
         // Admin (global) label
         $labelRows[] = ['key' => $key, 'store_id' => 0, 'value' => $value];
 
-        // Swatch row for visual swatch attributes
+        // Swatch row — col 3 (hex_code) only written when attribute is visual swatch
         if ($swatchType !== CsvValidator::SWATCH_NONE) {
             $swatchRows[] = [
                 'key'      => $key,
                 'store_id' => 0,
                 'type'     => 1,      // 1 = visual hex colour
-                'value'    => $adminRow[self::COL_SWATCH] ?? '',  // COL_SWATCH = 3
+                'value'    => $adminRow[CsvValidator::COL_SWATCH] ?? '',  // col 3
             ];
         }
 
         // Per-store-view translation labels
         foreach ($group['stores'] as $storeRow) {
-            $storeId     = $this->storeResolver->getStoreId($storeRow[self::COL_STORE]);
+            $storeId     = $this->storeResolver->getStoreId($storeRow[CsvValidator::COL_STORE_VIEW]);
             $labelRows[] = ['key' => $key, 'store_id' => $storeId,
                             'value' => $storeRow[self::COL_VALUE]];
         }
@@ -1541,16 +1546,6 @@ Result: [] (empty = valid)"""),
                 "Compared to attributeRepository->save() per option which triggers a full "
                 "EAV load + save cycle (~600 queries). Measured ~40x faster on a local Docker stack."),
         space(),
-        h3("dataColumnOffsets(int $swatchType): array"),
-        code(
-"""private function dataColumnOffsets(int $swatchType): array
-{
-    // With hex_code column:    [0]=attr_code [1]=store_view [2]=value
-    //                          [3]=hex_code  [4]=sort_order [5]=is_default
-    // Without hex_code column: [0]=attr_code [1]=store_view [2]=value
-    //                          [3]=sort_order [4]=is_default
-    return $swatchType !== CsvValidator::SWATCH_NONE ? [4, 5] : [3, 4];
-}"""),
         PageBreak(),
     ]
 
@@ -1730,7 +1725,7 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
             ["Test class", "Tests", "What is covered"],
             [
                 ["StreamingReaderTest",  "6",  "BOM stripping, whitespace trim, missing file exception, empty file, multi-row yield, readHeader()"],
-                ["ValidatorTest",        "13", "Header validation, row validation, statelessness, default store alias, duplicate detection, invalid sort_order, multiple is_default=1"],
+                ["ValidatorTest",        "14", "Header validation (single format), row validation, statelessness, default store alias, duplicate detection, invalid sort_order, multiple is_default=1, visual swatch hex required/invalid/valid, plain select ignores hex"],
                 ["OptionProcessorTest",  "5",  "New option insert, existing option skip, mixed skip/import, swatch persistence, empty groups"],
             ],
             col_widths=[5.5*cm, 1.5*cm, 10*cm]
@@ -1827,6 +1822,14 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
                  "toRelativePath() stripped scheme/host/port from getUrl()",
                  "getUrl() used directly",
                  "toRelativePath() was a workaround for a dev environment port mismatch. Not a module concern."],
+                ["Magic column indexes",
+                 "$row[0], $row[1], $row[3] scattered across Validator, OptionProcessor, ImportService",
+                 "Public COL_* constants on Validator, referenced everywhere",
+                 "Magic numbers are silent bugs. A column rename or addition broke three files at once."],
+                ["Dual CSV formats",
+                 "5-column CSV for plain select, 6-column for visual swatch. dataColumnOffsets() computed shifting offsets at runtime.",
+                 "Single 6-column format. hex_code always present, empty for non-swatch. COL_SORT_ORDER=4, COL_IS_DEFAULT=5 are fixed.",
+                 "The shifting offset logic existed only to support the dual format. One format eliminates the complexity entirely and gives the admin a single CSV template."],
             ],
             col_widths=[3.5*cm, 4.5*cm, 3.5*cm, 5.5*cm]
         ),

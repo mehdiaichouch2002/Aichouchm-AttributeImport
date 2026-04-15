@@ -1,4 +1,10 @@
 attribute_code,store_view,value,hex_code,sort_order,is_default
 color,default,Red,#FF0000,1,1
+color,fr,Rouge,#FF0000,1,1
+color,en,Red,#FF0000,1,1
 color,default,Blue,#0000FF,2,0
+color,fr,Bleu,#0000FF,2,0
+color,en,Blue,#0000FF,2,0
 color,default,Green,#008000,3,0
+color,fr,Vert,#008000,3,0
+color,en,Green,#008000,3,0

@@ -1,0 +1,7 @@
+attribute_code,store_view,value,hex_code,sort_order,is_default
+material,default,Cotton,,1,1
+material,fr,Coton,,1,1
+material,en,Cotton,,1,1
+material,default,Polyester,,2,0
+material,fr,Polyester,,2,0
+material,en,Polyester,,2,0

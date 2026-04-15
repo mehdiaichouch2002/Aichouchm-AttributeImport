@@ -34,14 +34,6 @@ class OptionProcessor
         $defaultKey = null;
         $skipped    = [];
 
-        $sortOrderCol = $swatchType !== CsvValidator::SWATCH_NONE
-            ? CsvValidator::COL_SORT_ORDER_SWATCH
-            : CsvValidator::COL_SORT_ORDER_PLAIN;
-
-        $isDefaultCol = $swatchType !== CsvValidator::SWATCH_NONE
-            ? CsvValidator::COL_IS_DEFAULT_SWATCH
-            : CsvValidator::COL_IS_DEFAULT_PLAIN;
-
         foreach ($groups as $group) {
             $adminRow = $group['admin'];
             $value    = $adminRow[CsvValidator::COL_VALUE];
@@ -55,10 +47,10 @@ class OptionProcessor
 
             $newOptions[$key] = [
                 'attribute_id' => $attribute->getAttributeId(),
-                'sort_order'   => (int) ($adminRow[$sortOrderCol] ?? 0),
+                'sort_order'   => (int) ($adminRow[CsvValidator::COL_SORT_ORDER] ?? 0),
             ];
 
-            if (($adminRow[$isDefaultCol] ?? '0') === '1') {
+            if (($adminRow[CsvValidator::COL_IS_DEFAULT] ?? '0') === '1') {
                 $defaultKey = $key;
             }
 

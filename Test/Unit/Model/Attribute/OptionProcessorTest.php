@@ -64,8 +64,8 @@ class OptionProcessorTest extends TestCase
 
         $groups = [
             [
-                'admin'  => ['color', 'admin', 'Red', '1', '1'],
-                'stores' => [['color', 'fr', 'Rouge', '1', '1']],
+                'admin'  => ['color', 'admin', 'Red', '', '1', '1'],
+                'stores' => [['color', 'fr', 'Rouge', '', '1', '1']],
             ],
         ];
 
@@ -81,7 +81,7 @@ class OptionProcessorTest extends TestCase
 
         $groups = [
             [
-                'admin'  => ['color', 'admin', 'Red', '1', '1'],
+                'admin'  => ['color', 'admin', 'Red', '', '1', '1'],
                 'stores' => [],
             ],
         ];
@@ -105,11 +105,11 @@ class OptionProcessorTest extends TestCase
 
         $groups = [
             [
-                'admin'  => ['color', 'admin', 'Red',  '1', '1'],
+                'admin'  => ['color', 'admin', 'Red',  '', '1', '1'],
                 'stores' => [],
             ],
             [
-                'admin'  => ['color', 'admin', 'Blue', '2', '0'],
+                'admin'  => ['color', 'admin', 'Blue', '', '2', '0'],
                 'stores' => [],
             ],
         ];

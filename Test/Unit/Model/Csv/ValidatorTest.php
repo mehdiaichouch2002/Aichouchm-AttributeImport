@@ -34,20 +34,10 @@ class ValidatorTest extends TestCase
 
     // ── Header validation ─────────────────────────────────────────────────────
 
-    public function testValidHeadersNoSwatchPass(): void
+    public function testValidHeadersPass(): void
     {
         $errors = $this->validator->validateHeaders(
-            ['attribute_code', 'store_view', 'value', 'sort_order', 'is_default'],
-            Validator::SWATCH_NONE
-        );
-        $this->assertEmpty($errors);
-    }
-
-    public function testValidHeadersWithSwatchPass(): void
-    {
-        $errors = $this->validator->validateHeaders(
-            ['attribute_code', 'store_view', 'value', 'hex_code', 'sort_order', 'is_default'],
-            Validator::SWATCH_VISUAL
+            ['attribute_code', 'store_view', 'value', 'hex_code', 'sort_order', 'is_default']
         );
         $this->assertEmpty($errors);
     }
@@ -55,8 +45,7 @@ class ValidatorTest extends TestCase
     public function testWrongColumnCountReturnsError(): void
     {
         $errors = $this->validator->validateHeaders(
-            ['attribute_code', 'store_view', 'value'],
-            Validator::SWATCH_NONE
+            ['attribute_code', 'store_view', 'value']
         );
         $this->assertNotEmpty($errors);
         $this->assertStringContainsString('column count', $errors[0]);
@@ -65,8 +54,7 @@ class ValidatorTest extends TestCase
     public function testWrongHeaderNameReturnsError(): void
     {
         $errors = $this->validator->validateHeaders(
-            ['attribute_code', 'store', 'value', 'sort_order', 'is_default'],
-            Validator::SWATCH_NONE
+            ['attribute_code', 'store', 'value', 'hex_code', 'sort_order', 'is_default']
         );
         $this->assertNotEmpty($errors);
     }
@@ -76,9 +64,9 @@ class ValidatorTest extends TestCase
     public function testValidRowsPass(): void
     {
         $rows = [
-            ['color', 'admin', 'Red', '1', '1'],
-            ['color', 'fr',    'Rouge', '1', '1'],
-            ['color', 'admin', 'Blue', '2', '0'],
+            ['color', 'admin', 'Red',  '', '1', '1'],
+            ['color', 'fr',    'Rouge','', '1', '1'],
+            ['color', 'admin', 'Blue', '', '2', '0'],
         ];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertEmpty($errors);
@@ -86,14 +74,14 @@ class ValidatorTest extends TestCase
 
     public function testMissingValueReturnsError(): void
     {
-        $rows   = [['color', 'admin', '', '1', '1']];
+        $rows   = [['color', 'admin', '', '', '1', '1']];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertNotEmpty($errors);
     }
 
     public function testWrongAttributeCodeReturnsError(): void
     {
-        $rows   = [['size', 'admin', 'Red', '1', '1']];
+        $rows   = [['size', 'admin', 'Red', '', '1', '1']];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertNotEmpty($errors);
         $this->assertStringContainsString('attribute_code', $errors[0]);
@@ -101,7 +89,7 @@ class ValidatorTest extends TestCase
 
     public function testNonNumericSortOrderReturnsError(): void
     {
-        $rows   = [['color', 'admin', 'Red', 'abc', '1']];
+        $rows   = [['color', 'admin', 'Red', '', 'abc', '1']];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertNotEmpty($errors);
         $this->assertStringContainsString('sort_order', $errors[0]);
@@ -110,8 +98,8 @@ class ValidatorTest extends TestCase
     public function testDuplicateAdminValueReturnsError(): void
     {
         $rows = [
-            ['color', 'admin', 'Red', '1', '1'],
-            ['color', 'admin', 'Red', '2', '0'],
+            ['color', 'admin', 'Red', '', '1', '1'],
+            ['color', 'admin', 'Red', '', '2', '0'],
         ];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertNotEmpty($errors);
@@ -121,8 +109,8 @@ class ValidatorTest extends TestCase
     public function testMultipleDefaultsReturnsError(): void
     {
         $rows = [
-            ['color', 'admin', 'Red', '1', '1'],
-            ['color', 'admin', 'Blue', '2', '1'],
+            ['color', 'admin', 'Red',  '', '1', '1'],
+            ['color', 'admin', 'Blue', '', '2', '1'],
         ];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertNotEmpty($errors);
@@ -132,9 +120,9 @@ class ValidatorTest extends TestCase
     public function testDuplicateStoreInGroupReturnsError(): void
     {
         $rows = [
-            ['color', 'admin', 'Red', '1', '1'],
-            ['color', 'fr',    'Rouge', '1', '1'],
-            ['color', 'fr',    'Rouge duplicate', '1', '1'],
+            ['color', 'admin', 'Red',            '', '1', '1'],
+            ['color', 'fr',    'Rouge',           '', '1', '1'],
+            ['color', 'fr',    'Rouge duplicate', '', '1', '1'],
         ];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertNotEmpty($errors);
@@ -144,7 +132,7 @@ class ValidatorTest extends TestCase
     public function testValidatorIsStateless(): void
     {
         // Running validation twice should give the same result, not accumulated errors
-        $rows = [['color', 'admin', 'Red', '1', '1']];
+        $rows = [['color', 'admin', 'Red', '', '1', '1']];
         $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertEmpty($errors);
@@ -152,11 +140,41 @@ class ValidatorTest extends TestCase
 
     public function testDefaultStoreCodeAcceptedAsAdmin(): void
     {
-        // 'default' must be accepted as an alias for the admin store
         $rows = [
-            ['color', 'default', 'Red', '1', '1'],
-            ['color', 'fr',      'Rouge', '1', '1'],
+            ['color', 'default', 'Red',   '', '1', '1'],
+            ['color', 'fr',      'Rouge', '', '1', '1'],
         ];
+        $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
+        $this->assertEmpty($errors);
+    }
+
+    public function testVisualSwatchRequiresHexCode(): void
+    {
+        $rows = [['color', 'admin', 'Red', '', '1', '1']];
+        $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_VISUAL);
+        $this->assertNotEmpty($errors);
+        $this->assertStringContainsString('hex_code is required', $errors[0]);
+    }
+
+    public function testVisualSwatchInvalidHexReturnsError(): void
+    {
+        $rows = [['color', 'admin', 'Red', 'notahex', '1', '1']];
+        $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_VISUAL);
+        $this->assertNotEmpty($errors);
+        $this->assertStringContainsString('valid hex', $errors[0]);
+    }
+
+    public function testVisualSwatchValidHexPasses(): void
+    {
+        $rows = [['color', 'admin', 'Red', '#FF0000', '1', '1']];
+        $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_VISUAL);
+        $this->assertEmpty($errors);
+    }
+
+    public function testPlainSelectIgnoresHexCode(): void
+    {
+        // hex_code column present but non-empty — must be silently ignored for SWATCH_NONE
+        $rows = [['color', 'admin', 'Red', '#FF0000', '1', '1']];
         $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
         $this->assertEmpty($errors);
     }
