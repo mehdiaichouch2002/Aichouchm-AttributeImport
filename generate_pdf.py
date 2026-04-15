@@ -1007,14 +1007,29 @@ yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
         code(
 """class Validator
 {
-    public const SWATCH_NONE   = -1;  // plain select / multiselect
-    public const SWATCH_VISUAL =  1;  // visual swatch (hex colour)
+    public const SWATCH_NONE   = -1;  // plain select / multiselect / text swatch
+    public const SWATCH_VISUAL =  1;  // visual swatch (hex colour per option)
     private const SWATCH_COLUMN = 'hex_code';
 }"""),
         space(),
         h3("getSwatchType(string $attributeCode): int"),
         p("Loads the attribute from the database and reads its <b>additional_data</b> JSON. "
-          "Returns a constant that controls which CSV columns are expected."),
+          "Returns a constant that controls which CSV columns are expected and whether a "
+          "row must be written to <b>eav_attribute_option_swatch</b>."),
+        p("Important: all swatch attributes (visual and text) store "
+          "<b>frontend_input = 'select'</b> in the database — the swatch type is kept "
+          "separately in the <b>additional_data</b> JSON column of <b>catalog_eav_attribute</b>. "
+          "That is why they appear in the attribute dropdown alongside plain select attributes."),
+        simple_table(
+            ["Attribute", "frontend_input (DB)", "additional_data (DB)", "getSwatchType() returns"],
+            [
+                ["color",    "select",      '{"swatch_input_type":"visual"}', "SWATCH_VISUAL = 1"],
+                ["size",     "select",      '{"swatch_input_type":"text"}',   "SWATCH_NONE = -1"],
+                ["material", "multiselect", "NULL",                           "SWATCH_NONE = -1"],
+            ],
+            col_widths=[3*cm, 4*cm, 7*cm, 4*cm]
+        ),
+        space(),
         code(
 """public function getSwatchType(string $attributeCode): int
 {
@@ -1023,13 +1038,14 @@ yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
     $additional = json_decode($attribute->getAdditionalData() ?? '{}', true);
 
     return match ($additional['swatch_input_type'] ?? null) {
-        'visual' => self::SWATCH_VISUAL,
-        default  => self::SWATCH_NONE,
+        'visual' => self::SWATCH_VISUAL,   // hex_code column required in CSV
+        default  => self::SWATCH_NONE,     // no hex_code column — plain select, multiselect, or text swatch
     };
 }
 
-// For attribute 'color' (visual swatch):  returns SWATCH_VISUAL = 1
-// For attribute 'size'  (plain select):   returns SWATCH_NONE   = -1"""),
+// color   → additional_data = {"swatch_input_type":"visual"} → SWATCH_VISUAL  → 6-column CSV
+// size    → additional_data = {"swatch_input_type":"text"}   → SWATCH_NONE    → 5-column CSV
+// material→ additional_data = NULL                           → SWATCH_NONE    → 5-column CSV"""),
         space(),
         h3("validateHeaders(array $headerRow, int $swatchType): array"),
         p("Checks the header row against the expected columns for the swatch type. "
