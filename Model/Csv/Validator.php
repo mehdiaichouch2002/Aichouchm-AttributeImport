@@ -13,6 +13,18 @@ class Validator
     public const SWATCH_NONE   = -1;
     public const SWATCH_VISUAL =  1;
 
+    // CSV column indexes — shared by Validator, OptionProcessor, ImportService
+    public const COL_ATTRIBUTE_CODE = 0;
+    public const COL_STORE_VIEW     = 1;
+    public const COL_VALUE          = 2;
+    public const COL_SWATCH         = 3; // only present when SWATCH_VISUAL
+
+    // sort_order / is_default shift right by one when the hex_code column is present
+    public const COL_SORT_ORDER_PLAIN   = 3; // SWATCH_NONE
+    public const COL_IS_DEFAULT_PLAIN   = 4;
+    public const COL_SORT_ORDER_SWATCH  = 4; // SWATCH_VISUAL
+    public const COL_IS_DEFAULT_SWATCH  = 5;
+
     private const SWATCH_COLUMN = 'hex_code';
 
     public function __construct(
@@ -76,24 +88,28 @@ class Validator
 
         foreach ($rows as $index => $row) {
             $rowNum    = $index + 2;
-            $storeCode = trim($row[1] ?? '');
+            $storeCode = trim($row[self::COL_STORE_VIEW] ?? '');
             $isAdmin   = $this->isAdminStoreCode($storeCode);
 
-            foreach ([0 => 'attribute_code', 1 => 'store_view', 2 => 'value'] as $col => $name) {
+            foreach ([
+                self::COL_ATTRIBUTE_CODE => 'attribute_code',
+                self::COL_STORE_VIEW     => 'store_view',
+                self::COL_VALUE          => 'value',
+            ] as $col => $name) {
                 if (($row[$col] ?? '') === '') {
                     $errors[] = (string) __('Row %1: "%2" is required and cannot be empty.', $rowNum, $name);
                 }
             }
 
-            if (($row[0] ?? '') !== $attributeCode) {
+            if (($row[self::COL_ATTRIBUTE_CODE] ?? '') !== $attributeCode) {
                 $errors[] = (string) __('Row %1: attribute_code "%2" does not match selected attribute "%3".',
-                    $rowNum, $row[0] ?? '', $attributeCode);
+                    $rowNum, $row[self::COL_ATTRIBUTE_CODE] ?? '', $attributeCode);
             }
 
             if ($isAdmin) {
                 $optionStores    = [];
                 $expectAdminNext = false;
-                $value           = $row[2] ?? '';
+                $value           = $row[self::COL_VALUE] ?? '';
 
                 if (in_array($value, $adminValues, true)) {
                     $errors[] = (string) __('Row %1: Duplicate option value "%2" within the CSV (admin store).',
@@ -119,7 +135,7 @@ class Validator
                 }
 
                 if ($swatchType === self::SWATCH_VISUAL) {
-                    $swatchVal = $row[3] ?? '';
+                    $swatchVal = $row[self::COL_SWATCH] ?? '';
                     if (!$this->isValidSwatchValue($swatchVal)) {
                         $errors[] = (string) __('Row %1: swatch value "%2" is not a valid hex color or image URL.',
                             $rowNum, $swatchVal);
@@ -155,7 +171,9 @@ class Validator
 
     private function dataColumnOffsets(int $swatchType): array
     {
-        return $swatchType !== self::SWATCH_NONE ? [4, 5] : [3, 4];
+        return $swatchType !== self::SWATCH_NONE
+            ? [self::COL_SORT_ORDER_SWATCH, self::COL_IS_DEFAULT_SWATCH]
+            : [self::COL_SORT_ORDER_PLAIN,  self::COL_IS_DEFAULT_PLAIN];
     }
 
     private function expectedHeaders(int $swatchType): array

@@ -11,10 +11,6 @@ use Magento\Framework\App\ResourceConnection;
 
 class OptionProcessor
 {
-    private const COL_STORE  = 1;
-    private const COL_VALUE  = 2;
-    private const COL_SWATCH = 3;
-
     public function __construct(
         private readonly ResourceConnection $resourceConnection,
         private readonly StoreResolver      $storeResolver
@@ -38,11 +34,17 @@ class OptionProcessor
         $defaultKey = null;
         $skipped    = [];
 
-        [$sortOrderCol, $isDefaultCol] = $this->dataColumnOffsets($swatchType);
+        $sortOrderCol = $swatchType !== CsvValidator::SWATCH_NONE
+            ? CsvValidator::COL_SORT_ORDER_SWATCH
+            : CsvValidator::COL_SORT_ORDER_PLAIN;
+
+        $isDefaultCol = $swatchType !== CsvValidator::SWATCH_NONE
+            ? CsvValidator::COL_IS_DEFAULT_SWATCH
+            : CsvValidator::COL_IS_DEFAULT_PLAIN;
 
         foreach ($groups as $group) {
             $adminRow = $group['admin'];
-            $value    = $adminRow[self::COL_VALUE];
+            $value    = $adminRow[CsvValidator::COL_VALUE];
 
             if (array_key_exists($value, $existingOptions)) {
                 $skipped[] = $value;
@@ -63,18 +65,17 @@ class OptionProcessor
             $labelRows[] = ['key' => $key, 'store_id' => 0, 'value' => $value];
 
             if ($swatchType !== CsvValidator::SWATCH_NONE) {
-                $swatchVal    = $adminRow[self::COL_SWATCH] ?? '';
                 $swatchRows[] = [
                     'key'      => $key,
                     'store_id' => 0,
                     'type'     => 1,
-                    'value'    => $swatchVal,
+                    'value'    => $adminRow[CsvValidator::COL_SWATCH] ?? '',
                 ];
             }
 
             foreach ($group['stores'] as $storeRow) {
-                $storeId     = $this->storeResolver->getStoreId($storeRow[self::COL_STORE]);
-                $labelRows[] = ['key' => $key, 'store_id' => $storeId, 'value' => $storeRow[self::COL_VALUE]];
+                $storeId     = $this->storeResolver->getStoreId($storeRow[CsvValidator::COL_STORE_VIEW]);
+                $labelRows[] = ['key' => $key, 'store_id' => $storeId, 'value' => $storeRow[CsvValidator::COL_VALUE]];
             }
         }
 
@@ -133,8 +134,4 @@ class OptionProcessor
         }
     }
 
-    private function dataColumnOffsets(int $swatchType): array
-    {
-        return $swatchType !== CsvValidator::SWATCH_NONE ? [4, 5] : [3, 4];
-    }
 }

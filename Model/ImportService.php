@@ -122,7 +122,7 @@ class ImportService implements ImportServiceInterface
                 continue;
             }
 
-            $storeCode = strtolower(trim($row[1] ?? ''));
+            $storeCode = strtolower(trim($row[CsvValidator::COL_STORE_VIEW] ?? ''));
             $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
 
             if ($isAdmin) {
