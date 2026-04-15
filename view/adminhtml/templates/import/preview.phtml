@@ -9,7 +9,7 @@ $errors = $block->getData('errors');
 <?php if (!empty($errors)): ?>
     <div class="messages">
         <?php foreach ($errors as $error): ?>
-            <div class="message message-error"><div><?= $block->escapeHtml($error) ?></div></div>
+            <div class="message message-error"><?= $block->escapeHtml($error) ?></div>
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
