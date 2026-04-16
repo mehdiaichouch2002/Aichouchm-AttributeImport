@@ -684,23 +684,24 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 
     $this->options = [['value' => '', 'label' => __('-- Please Select --')]];
 
+    // Both filters pushed to SQL — only matching rows are loaded from DB
+    $searchCriteria = $this->searchCriteriaBuilder
+        ->addFilter('frontend_input', ['select', 'multiselect'], 'in')
+        ->addFilter('is_user_defined', 1)
+        ->create();
+
     $items = $this->attributeRepository
-        ->getList('catalog_product', $this->searchCriteriaBuilder->create())
+        ->getList('catalog_product', $searchCriteria)
         ->getItems();
 
     foreach ($items as $attribute) {
-        if (
-            $attribute->getIsUserDefined()  // excludes system attributes like 'status', 'price'
-            && in_array($attribute->getFrontendInput(), ['select', 'multiselect'], true)
-        ) {
-            $this->options[] = [
-                'value' => $attribute->getAttributeCode(),
-                'label' => sprintf('%s [%s]',
-                    $attribute->getDefaultFrontendLabel() ?? $attribute->getAttributeCode(),
-                    $attribute->getAttributeCode()
-                ),
-            ];
-        }
+        $this->options[] = [
+            'value' => $attribute->getAttributeCode(),
+            'label' => sprintf('%s [%s]',
+                $attribute->getDefaultFrontendLabel() ?? $attribute->getAttributeCode(),
+                $attribute->getAttributeCode()
+            ),
+        ];
     }
 
     return $this->options;

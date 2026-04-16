@@ -37,25 +37,24 @@ class Attributes implements ArrayInterface
 
         $this->options = [['value' => '', 'label' => __('-- Please Select --')]];
 
-        $searchCriteria = $this->searchCriteriaBuilder->create();
-        $items          = $this->attributeRepository
+        $searchCriteria = $this->searchCriteriaBuilder
+            ->addFilter('frontend_input', ['select', 'multiselect'], 'in')
+            ->addFilter('is_user_defined', 1)
+            ->create();
+
+        $items = $this->attributeRepository
             ->getList('catalog_product', $searchCriteria)
             ->getItems();
 
         foreach ($items as $attribute) {
-            if (
-                $attribute->getIsUserDefined()
-                && in_array($attribute->getFrontendInput(), ['select', 'multiselect'], true)
-            ) {
-                $this->options[] = [
-                    'value' => $attribute->getAttributeCode(),
-                    'label' => sprintf(
-                        '%s [%s]',
-                        $attribute->getDefaultFrontendLabel() ?? $attribute->getAttributeCode(),
-                        $attribute->getAttributeCode()
-                    ),
-                ];
-            }
+            $this->options[] = [
+                'value' => $attribute->getAttributeCode(),
+                'label' => sprintf(
+                    '%s [%s]',
+                    $attribute->getDefaultFrontendLabel() ?? $attribute->getAttributeCode(),
+                    $attribute->getAttributeCode()
+                ),
+            ];
         }
 
         return $this->options;

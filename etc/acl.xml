@@ -9,7 +9,7 @@
                         <resource id="Aichouchm_AttributeImport::import_attributes"
                                   title="Import Attributes"
                                   translate="title"
-                                  sortOrder="70"/>
+                                  sortOrder="80"/>
                     </resource>
                 </resource>
             </resource>
