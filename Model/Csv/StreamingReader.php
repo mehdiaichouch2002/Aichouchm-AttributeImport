@@ -35,12 +35,6 @@ class StreamingReader
             );
         }
 
-        // Strip UTF-8 BOM so Excel-exported files work without header validation failures
-        $bom = fread($handle, 3);
-        if ($bom !== "\xEF\xBB\xBF") {
-            rewind($handle);
-        }
-
         try {
             $lineNumber = 0;
             while (($row = fgetcsv($handle, 0, $this->delimiter, $this->enclosure, $this->escape)) !== false) {

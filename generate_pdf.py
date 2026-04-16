@@ -266,7 +266,7 @@ def build_body():
   [Preview controller] receives multipart POST
         |
         v
-  [StreamingReader]    opens file, strips BOM, yields one row[] per line
+  [StreamingReader]    opens file, yields one row[] per line
         |
         v
   [Validator]          validateHeaders() -- checks column count and names
@@ -320,11 +320,13 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 |   |   `-- OptionProcessor.php         <- bulk DB writes
 |   |-- Import/Source/Attributes.php    <- attribute dropdown source model
 |   `-- ImportService.php               <- main orchestrator
-|-- Controller/Adminhtml/Import/
-|   |-- Index.php                       <- render the import page
-|   |-- Preview.php                     <- AJAX: Check Data
-|   |-- Process.php                     <- AJAX: Import
-|   `-- Log.php                         <- log viewer page
+|-- Controller/Adminhtml/
+|   |-- AbstractAction.php              <- shared ADMIN_RESOURCE constant
+|   `-- Import/
+|       |-- Index.php                   <- render the import page
+|       |-- Preview.php                 <- AJAX: Check Data
+|       |-- Process.php                 <- AJAX: Import
+|       `-- Log.php                     <- log viewer page
 |-- Block/Adminhtml/
 |   |-- Import/
 |   |   |-- Form.php                    <- page container (buttons)
@@ -495,14 +497,29 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
           "to build the page structure."),
         space(),
 
+        h2("Controller/Adminhtml/AbstractAction.php"),
+        filepath("Aichouchm_AttributeImport/Controller/Adminhtml/AbstractAction.php"),
+        p("Base class for all four admin controllers. Defines <b>ADMIN_RESOURCE</b> once — "
+          "the single source of truth that Magento's Action class reads to gate access."),
+        code(
+"""abstract class AbstractAction extends Action
+{
+    /**
+     * Authorization resource
+     */
+    public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
+}"""),
+        callout("info", "All four controllers (Index, Preview, Process, Log) extend this class. "
+                "Before this refactor each controller redeclared the same constant — a rename "
+                "would have required four edits."),
+        space(),
+
         h2("Controller/Adminhtml/Import/Index.php"),
         filepath("Aichouchm_AttributeImport/Controller/Adminhtml/Import/Index.php"),
         p("The simplest possible admin controller. Its only job is to declare which page to render."),
         code(
-"""class Index extends Action implements HttpGetActionInterface
+"""class Index extends AbstractAction implements HttpGetActionInterface
 {
-    public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
-
     public function execute(): Page
     {
         $resultPage = $this->resultPageFactory->create();
@@ -514,11 +531,10 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
         simple_table(
             ["Item", "Purpose"],
             [
-                ["extends Action",        "Gives access to request, DI, and auto-runs _isAllowed()"],
-                ["ADMIN_RESOURCE",        "Parent Action reads this constant and blocks unauthorized roles"],
-                ["resultPageFactory",     "Creates a Page result — never use 'new Page()' in Magento"],
-                ["setActiveMenu()",       "Highlights the correct item in the left sidebar menu"],
-                ["getTitle()->prepend()", "Sets the browser tab title and admin page heading"],
+                ["extends AbstractAction", "Inherits ADMIN_RESOURCE; Action auto-runs _isAllowed()"],
+                ["resultPageFactory",      "Creates a Page result — never use 'new Page()' in Magento"],
+                ["setActiveMenu()",        "Highlights the correct item in the left sidebar menu"],
+                ["getTitle()->prepend()",  "Sets the browser tab title and admin page heading"],
             ],
             col_widths=[4.5*cm, 12.5*cm]
         ),
@@ -952,14 +968,6 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
     $handle = @fopen($filePath, 'r');
     if ($handle === false) {
         throw new RuntimeException('Cannot open CSV file: ' . $filePath);
-    }
-
-    // Strip UTF-8 BOM (added by Excel when exporting CSV)
-    // Without this, the first header reads as garbage + 'attribute_code'
-    // and all header validation fails.
-    $bom = fread($handle, 3);
-    if ($bom !== "\\xEF\\xBB\\xBF") {
-        rewind($handle);  // not a BOM, put those 3 bytes back
     }
 
     try {
@@ -1400,6 +1408,15 @@ Result: [] (empty = valid)"""),
         return $codes;  // e.g. ['default', 'fr', 'en']
     }
 }"""),
+        p("Running example — mapping every CSV store_view to a DB store_id:"),
+        code(
+"""// store_view column values from the running example CSV:
+getStoreId('default') -> 0   // intercepted before StoreManager — admin global store
+getStoreId('fr')      -> 2   // StoreManager lookup — French store view
+getStoreId('en')      -> 3   // StoreManager lookup — English store view
+
+// getAllStoreCodes() on a store with fr + en views returns:
+['fr', 'en']   // default/admin are aliases, not returned by getStores()"""),
         callout("warn", "StoreManager->getStore('default') returns store_id=1 (the Default "
                 "Store View), NOT store_id=0. Passing 'default' through StoreManager would "
                 "save labels to the wrong store. The explicit alias intercepts 'default'/'admin' "
@@ -1463,7 +1480,7 @@ Result: [] (empty = valid)"""),
         foreach ($group['stores'] as $storeRow) {
             $storeId     = $this->storeResolver->getStoreId($storeRow[CsvValidator::COL_STORE_VIEW]);
             $labelRows[] = ['key' => $key, 'store_id' => $storeId,
-                            'value' => $storeRow[self::COL_VALUE]];
+                            'value' => $storeRow[CsvValidator::COL_VALUE]];
         }
     }
 
@@ -1631,7 +1648,25 @@ Result: [] (empty = valid)"""),
         h2("Controller/Adminhtml/Import/Log.php"),
         filepath("Aichouchm_AttributeImport/Controller/Adminhtml/Import/Log.php"),
         p("Standard page controller. Returns a Page result and sets the page title. "
-          "Identical pattern to Index.php."),
+          "Same structure as Index — only the title string differs."),
+        code(
+"""class Log extends AbstractAction
+{
+    public function __construct(
+        Context                      $context,
+        private readonly PageFactory $resultPageFactory
+    ) {
+        parent::__construct($context);
+    }
+
+    public function execute(): Page
+    {
+        $resultPage = $this->resultPageFactory->create();
+        $resultPage->setActiveMenu('Aichouchm_AttributeImport::import_attributes');
+        $resultPage->getConfig()->getTitle()->prepend(__('Attribute Import Log'));
+        return $resultPage;
+    }
+}"""),
         space(),
 
         h2("Block/Adminhtml/Log.php"),
@@ -1714,75 +1749,9 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
     ]
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SECTION 9 — Unit Tests
+    # SECTION 9 — Refactoring Log
     # ─────────────────────────────────────────────────────────────────────────
-    story += [h1("9  Unit Tests"), space()]
-    story += [
-        p("Tests use PHPUnit 10 with mocks only — no Magento bootstrap, no database. "
-          "All tests run in under 1 second."),
-        space(),
-        simple_table(
-            ["Test class", "Tests", "What is covered"],
-            [
-                ["StreamingReaderTest",  "6",  "BOM stripping, whitespace trim, missing file exception, empty file, multi-row yield, readHeader()"],
-                ["ValidatorTest",        "14", "Header validation (single format), row validation, statelessness, default store alias, duplicate detection, invalid sort_order, multiple is_default=1, visual swatch hex required/invalid/valid, plain select ignores hex"],
-                ["OptionProcessorTest",  "5",  "New option insert, existing option skip, mixed skip/import, swatch persistence, empty groups"],
-            ],
-            col_widths=[5.5*cm, 1.5*cm, 10*cm]
-        ),
-        space(),
-        h2("Running the Tests"),
-        code(
-"""docker compose exec maintenance bash -c \\
-  "cd /var/www/html && \\
-   vendor/bin/phpunit \\
-   app/code/Aichouchm/AttributeImport/Test/Unit" """),
-        space(),
-        h2("Key Test: Validator Statelessness"),
-        p("This test verifies that validating two files in the same request does not carry "
-          "errors from the first file into the second. It would fail if validateRows() "
-          "stored $errors in a class property."),
-        code(
-"""public function testValidatorIsStateless(): void
-{
-    $rows = [['color', 'admin', 'Red', '1', '1']];
-
-    // Call once (produces no errors)
-    $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
-
-    // Call again — must still produce no errors
-    // If $errors were a class property, it would be empty from the first call
-    // but the real risk is the opposite: if $defaultSelected or $adminValues
-    // leaked from a previous call with errors, this valid call could inherit them.
-    $errors = $this->validator->validateRows($rows, 'color', Validator::SWATCH_NONE);
-    $this->assertEmpty($errors);
-}"""),
-        space(),
-        h2("Key Test: Swatch Data Persistence"),
-        p("Verifies that insertOnDuplicate is called when importing with SWATCH_VISUAL."),
-        code(
-"""public function testSwatchDataIsPersistedForVisualSwatch(): void
-{
-    $this->connection->method('insert')->willReturn(1);
-
-    // Assert that insertOnDuplicate is called exactly once (batch swatch insert)
-    $this->connection->expects($this->once())
-        ->method('insertOnDuplicate');
-
-    $groups = [[
-        'admin'  => ['color', 'admin', 'Red', '#FF0000', '1', '1'],
-        'stores' => [],
-    ]];
-
-    $this->processor->processGroups($groups, [], Validator::SWATCH_VISUAL, $this->attribute);
-}"""),
-        PageBreak(),
-    ]
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # SECTION 10 — Refactoring Log
-    # ─────────────────────────────────────────────────────────────────────────
-    story += [h1("10  Refactoring Log"), space()]
+    story += [h1("9  Refactoring Log"), space()]
     story += [
         p("Changes made during development to simplify the code. Each entry explains "
           "what was removed and why."),
@@ -1830,6 +1799,10 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
                  "5-column CSV for plain select, 6-column for visual swatch. dataColumnOffsets() computed shifting offsets at runtime.",
                  "Single 6-column format. hex_code always present, empty for non-swatch. COL_SORT_ORDER=4, COL_IS_DEFAULT=5 are fixed.",
                  "The shifting offset logic existed only to support the dual format. One format eliminates the complexity entirely and gives the admin a single CSV template."],
+                ["ADMIN_RESOURCE duplication",
+                 "public const ADMIN_RESOURCE = '...' redeclared identically in all four controllers (Index, Preview, Process, Log).",
+                 "Single declaration in AbstractAction; all controllers extend it.",
+                 "A rename of the ACL resource required four edits and could silently diverge. Single source of truth eliminates the risk."],
             ],
             col_widths=[3.5*cm, 4.5*cm, 3.5*cm, 5.5*cm]
         ),
