@@ -1,23 +1,29 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Controller\Adminhtml\Import;
 
 use Aichouchm\AttributeImport\Api\ImportServiceInterface;
 use Aichouchm\AttributeImport\Block\Adminhtml\Import\Preview as PreviewBlock;
+use Aichouchm\AttributeImport\Controller\Adminhtml\AbstractAction;
 use Exception;
-use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
 use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Magento\Framework\View\LayoutFactory;
 
-class Preview extends Action implements HttpPostActionInterface
+/**
+ * Controller Class Preview
+ */
+class Preview extends AbstractAction implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
-
+    /**
+     * @param Context $context
+     * @param JsonFactory $resultJsonFactory
+     * @param ImportServiceInterface $importService
+     * @param LayoutFactory $layoutFactory
+     */
     public function __construct(
         Context                              $context,
         private readonly JsonFactory         $resultJsonFactory,
@@ -27,6 +33,9 @@ class Preview extends Action implements HttpPostActionInterface
         parent::__construct($context);
     }
 
+    /**
+     * @return Json
+     */
     public function execute(): Json
     {
         $result = $this->resultJsonFactory->create();
@@ -53,6 +62,10 @@ class Preview extends Action implements HttpPostActionInterface
         }
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function assertValidRequest(): void
     {
         $files = $this->getRequest()->getFiles()->toArray();
@@ -68,6 +81,10 @@ class Preview extends Action implements HttpPostActionInterface
         }
     }
 
+    /**
+     * @return string
+     * @throws Exception
+     */
     private function getUploadedFilePath(): string
     {
         $files    = $this->getRequest()->getFiles()->toArray();
@@ -79,6 +96,11 @@ class Preview extends Action implements HttpPostActionInterface
         return $filePath;
     }
 
+    /**
+     * @param array $rows
+     * @param array $errors
+     * @return string
+     */
     private function renderPreviewBlock(array $rows, array $errors): string
     {
         return $this->layoutFactory->create()

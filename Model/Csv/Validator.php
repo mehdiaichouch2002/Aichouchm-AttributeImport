@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model\Csv;
@@ -8,13 +7,25 @@ use Aichouchm\AttributeImport\Service\StoreResolver;
 use Magento\Catalog\Model\Product;
 use Magento\Catalog\Model\ResourceModel\Eav\AttributeFactory;
 
+/**
+ * Class Validator
+ */
 class Validator
 {
+    /**
+     * Non-swatch attribute (no swatch column in CSV)
+     */
     public const SWATCH_NONE   = -1;
+
+    /**
+     * Visual swatch attribute (hex colour or image URL)
+     */
     public const SWATCH_VISUAL =  1;
 
-    // Unified 6-column CSV format (hex_code is always present; leave empty for non-visual attributes)
-    // attribute_code | store_view | value | hex_code | sort_order | is_default
+    /**
+     * Unified 6-column CSV format:
+     * attribute_code | store_view | value | hex_code | sort_order | is_default
+     */
     public const COL_ATTRIBUTE_CODE = 0;
     public const COL_STORE_VIEW     = 1;
     public const COL_VALUE          = 2;
@@ -22,13 +33,24 @@ class Validator
     public const COL_SORT_ORDER     = 4;
     public const COL_IS_DEFAULT     = 5;
 
+    /**
+     * @var string[]
+     */
     private const EXPECTED_HEADERS = ['attribute_code', 'store_view', 'value', 'hex_code', 'sort_order', 'is_default'];
 
+    /**
+     * @param StoreResolver $storeResolver
+     * @param AttributeFactory $attributeFactory
+     */
     public function __construct(
         private readonly StoreResolver    $storeResolver,
         private readonly AttributeFactory $attributeFactory
     ) {}
 
+    /**
+     * @param string $attributeCode
+     * @return int
+     */
     public function getSwatchType(string $attributeCode): int
     {
         $attribute  = $this->attributeFactory->create()->loadByCode(Product::ENTITY, $attributeCode);
@@ -41,8 +63,8 @@ class Validator
     }
 
     /**
-     * @param string[] $headerRow
-     * @return string[]
+     * @param array $headerRow
+     * @return array|string[]
      */
     public function validateHeaders(array $headerRow): array
     {
@@ -68,8 +90,10 @@ class Validator
     }
 
     /**
-     * @param  array[] $rows Data rows (header excluded)
-     * @return string[]
+     * @param array $rows
+     * @param string $attributeCode
+     * @param int $swatchType
+     * @return array
      */
     public function validateRows(array $rows, string $attributeCode, int $swatchType): array
     {
@@ -159,11 +183,19 @@ class Validator
         return $errors;
     }
 
+    /**
+     * @param string $code
+     * @return bool
+     */
     private function isAdminStoreCode(string $code): bool
     {
         return in_array(strtolower($code), ['admin', 'default'], true);
     }
 
+    /**
+     * @param string $value
+     * @return bool
+     */
     private function isValidSwatchValue(string $value): bool
     {
         return (bool) preg_match('/^#[A-Fa-f0-9]{6}$/', trim($value));

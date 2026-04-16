@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Block\Adminhtml\Import\Form;
@@ -10,15 +9,28 @@ use Magento\Backend\Block\Widget\Form\Generic;
 use Magento\Framework\Data\FormFactory;
 use Magento\Framework\Registry;
 
+/**
+ * Class Form
+ */
 class Form extends Generic
 {
+    /**
+     * Source file field name
+     */
     public const FIELD_NAME_SOURCE_FILE = 'import_file';
 
+    /**
+     * @param Context $context
+     * @param Registry $registry
+     * @param FormFactory $formFactory
+     * @param Attributes $sourceAttributes
+     * @param array $data
+     */
     public function __construct(
-        Context                         $context,
-        Registry                        $registry,
-        FormFactory                     $formFactory,
-        private readonly Attributes     $sourceAttributes,
+        Context                     $context,
+        Registry                    $registry,
+        FormFactory                 $formFactory,
+        private readonly Attributes $sourceAttributes,
         array $data = []
     ) {
         parent::__construct($context, $registry, $formFactory, $data);
@@ -26,7 +38,6 @@ class Form extends Generic
 
     /**
      * @return $this
-     * @throws \Magento\Framework\Exception\LocalizedException
      */
     protected function _prepareForm(): static
     {

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model\Csv;
@@ -7,8 +6,16 @@ namespace Aichouchm\AttributeImport\Model\Csv;
 use Generator;
 use RuntimeException;
 
+/**
+ * Class StreamingReader
+ */
 class StreamingReader
 {
+    /**
+     * @param string $delimiter
+     * @param string $enclosure
+     * @param string $escape
+     */
     public function __construct(
         private readonly string $delimiter = ',',
         private readonly string $enclosure = '"',
@@ -16,10 +23,8 @@ class StreamingReader
     ) {}
 
     /**
-     * Yields one row array per line. Line numbers are 0-based (0 = header).
-     *
-     * @return Generator<int, string[]>
-     * @throws RuntimeException
+     * @param string $filePath
+     * @return Generator
      */
     public function read(string $filePath): Generator
     {
@@ -47,6 +52,10 @@ class StreamingReader
         }
     }
 
+    /**
+     * @param string $filePath
+     * @return array
+     */
     public function readHeader(string $filePath): array
     {
         foreach ($this->read($filePath) as $row) {

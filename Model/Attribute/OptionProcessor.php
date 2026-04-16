@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model\Attribute;
@@ -9,18 +8,26 @@ use Aichouchm\AttributeImport\Service\StoreResolver;
 use Magento\Eav\Api\Data\AttributeInterface;
 use Magento\Framework\App\ResourceConnection;
 
+/**
+ * Class OptionProcessor
+ */
 class OptionProcessor
 {
+    /**
+     * @param ResourceConnection $resourceConnection
+     * @param StoreResolver $storeResolver
+     */
     public function __construct(
         private readonly ResourceConnection $resourceConnection,
         private readonly StoreResolver      $storeResolver
     ) {}
 
     /**
-     * @param  array[]           $groups         [{admin: row, stores: [row…]}, …]
-     * @param  array             $existingOptions [value => option_id] at store_id=0
-     * @param  int               $swatchType      CsvValidator::SWATCH_* constant
-     * @return array{imported: int, skipped: int, skippedValues: string[]}
+     * @param array $groups
+     * @param array $existingOptions
+     * @param int $swatchType
+     * @param AttributeInterface $attribute
+     * @return array
      */
     public function processGroups(
         array $groups,
@@ -82,6 +89,14 @@ class OptionProcessor
         ];
     }
 
+    /**
+     * @param array $newOptions
+     * @param array $labelRows
+     * @param array $swatchRows
+     * @param string|null $defaultKey
+     * @param AttributeInterface $attribute
+     * @return void
+     */
     private function bulkSave(
         array $newOptions,
         array $labelRows,
@@ -125,5 +140,4 @@ class OptionProcessor
             $connection->insertOnDuplicate($swatchTable, $rows, ['type', 'value']);
         }
     }
-
 }

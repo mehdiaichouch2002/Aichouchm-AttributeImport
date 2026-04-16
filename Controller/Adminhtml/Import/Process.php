@@ -1,22 +1,28 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Controller\Adminhtml\Import;
 
 use Aichouchm\AttributeImport\Api\ImportServiceInterface;
+use Aichouchm\AttributeImport\Controller\Adminhtml\AbstractAction;
 use Exception;
-use Magento\Backend\App\Action;
 use Magento\Backend\App\Action\Context;
 use Magento\Framework\App\Action\HttpPostActionInterface;
 use Magento\Framework\Controller\Result\Json;
 use Magento\Framework\Controller\Result\JsonFactory;
 use Psr\Log\LoggerInterface;
 
-class Process extends Action implements HttpPostActionInterface
+/**
+ * Controller Class Process
+ */
+class Process extends AbstractAction implements HttpPostActionInterface
 {
-    public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
-
+    /**
+     * @param Context $context
+     * @param ImportServiceInterface $importService
+     * @param JsonFactory $resultJsonFactory
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         Context                              $context,
         private readonly ImportServiceInterface $importService,
@@ -26,6 +32,9 @@ class Process extends Action implements HttpPostActionInterface
         parent::__construct($context);
     }
 
+    /**
+     * @return Json
+     */
     public function execute(): Json
     {
         $result = $this->resultJsonFactory->create();
@@ -55,6 +64,10 @@ class Process extends Action implements HttpPostActionInterface
         }
     }
 
+    /**
+     * @return void
+     * @throws Exception
+     */
     private function assertValidRequest(): void
     {
         $files = $this->getRequest()->getFiles()->toArray();
@@ -70,6 +83,10 @@ class Process extends Action implements HttpPostActionInterface
         }
     }
 
+    /**
+     * @return string
+     * @throws Exception
+     */
     private function getUploadedFilePath(): string
     {
         $files    = $this->getRequest()->getFiles()->toArray();

@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model\Import\Source;
@@ -8,10 +7,20 @@ use Magento\Eav\Api\AttributeRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
 use Magento\Framework\Option\ArrayInterface;
 
+/**
+ * Class Attributes
+ */
 class Attributes implements ArrayInterface
 {
+    /**
+     * @var array|null
+     */
     private ?array $options = null;
 
+    /**
+     * @param AttributeRepositoryInterface $attributeRepository
+     * @param SearchCriteriaBuilder $searchCriteriaBuilder
+     */
     public function __construct(
         private readonly AttributeRepositoryInterface $attributeRepository,
         private readonly SearchCriteriaBuilder        $searchCriteriaBuilder

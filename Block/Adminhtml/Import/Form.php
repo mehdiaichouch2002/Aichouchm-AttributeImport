@@ -1,15 +1,23 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Block\Adminhtml\Import;
 
 use Magento\Backend\Block\Widget\Form\Container;
 
+/**
+ * Class Form
+ */
 class Form extends Container
 {
+    /**
+     * @var string
+     */
     protected $_mode = 'form';
 
+    /**
+     * @return void
+     */
     protected function _construct(): void
     {
         parent::_construct();
@@ -33,7 +41,7 @@ class Form extends Container
             ]
         );
 
-        $this->_objectId  = 'import_ids';
+        $this->_objectId   = 'import_ids';
         $this->_blockGroup = 'Aichouchm_AttributeImport';
         $this->_controller = 'adminhtml_import';
     }

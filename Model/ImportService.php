@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model;
@@ -14,10 +13,25 @@ use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
+/**
+ * Class ImportService
+ */
 class ImportService implements ImportServiceInterface
 {
+    /**
+     * EAV entity type for catalog products
+     */
     private const ENTITY_TYPE = 'catalog_product';
 
+    /**
+     * @param StreamingReader $streamingReader
+     * @param CsvValidator $csvValidator
+     * @param OptionProcessor $optionProcessor
+     * @param AttributeRepositoryInterface $attributeRepository
+     * @param ResourceConnection $resourceConnection
+     * @param CacheManager $cacheManager
+     * @param LoggerInterface $logger
+     */
     public function __construct(
         private readonly StreamingReader              $streamingReader,
         private readonly CsvValidator                $csvValidator,
@@ -28,6 +42,11 @@ class ImportService implements ImportServiceInterface
         private readonly LoggerInterface             $logger
     ) {}
 
+    /**
+     * @param string $filePath
+     * @param string $attributeCode
+     * @return array
+     */
     public function validate(string $filePath, string $attributeCode): array
     {
         try {
@@ -51,6 +70,11 @@ class ImportService implements ImportServiceInterface
         }
     }
 
+    /**
+     * @param string $filePath
+     * @param string $attributeCode
+     * @return array
+     */
     public function import(string $filePath, string $attributeCode): array
     {
         $this->logger->info(sprintf('[%s] Import started — attribute: %s', date('Y-m-d H:i:s'), $attributeCode));
@@ -104,6 +128,11 @@ class ImportService implements ImportServiceInterface
         }
     }
 
+    /**
+     * @param string $filePath
+     * @param string $attributeCode
+     * @return array
+     */
     private function readAllRows(string $filePath, string $attributeCode): array
     {
         return [
@@ -112,6 +141,11 @@ class ImportService implements ImportServiceInterface
         ];
     }
 
+    /**
+     * @param string $filePath
+     * @param int $swatchType
+     * @return array
+     */
     private function groupRowsByOption(string $filePath, int $swatchType): array
     {
         $groups       = [];
@@ -142,6 +176,10 @@ class ImportService implements ImportServiceInterface
         return $groups;
     }
 
+    /**
+     * @param int $attributeId
+     * @return array
+     */
     private function loadExistingOptions(int $attributeId): array
     {
         $connection = $this->resourceConnection->getConnection();
