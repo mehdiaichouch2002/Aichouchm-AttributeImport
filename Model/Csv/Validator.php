@@ -190,7 +190,7 @@ class Validator
      */
     private function isAdminStoreCode(string $code): bool
     {
-        return in_array(strtolower($code), ['admin', 'default'], true);
+        return in_array(strtolower($code), StoreResolver::ADMIN_STORE_CODES, true);
     }
 
     /**

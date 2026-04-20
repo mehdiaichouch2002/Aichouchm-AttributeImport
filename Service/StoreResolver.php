@@ -10,6 +10,8 @@ use Magento\Store\Model\StoreManagerInterface;
  */
 class StoreResolver
 {
+    public const ADMIN_STORE_CODES = ['admin', 'default'];
+
     /**
      * @var string[]
      */
@@ -28,7 +30,7 @@ class StoreResolver
      */
     public function getStoreId(string $storeCode): int
     {
-        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+        if (in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true)) {
             return 0;
         }
         return (int) $this->storeManager->getStore($storeCode)->getId();
@@ -54,7 +56,7 @@ class StoreResolver
      */
     public function isValidStoreCode(string $storeCode): bool
     {
-        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+        if (in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true)) {
             return true;
         }
         return in_array($storeCode, $this->getAllStoreCodes(), true);

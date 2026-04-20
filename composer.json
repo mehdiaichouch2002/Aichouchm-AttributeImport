@@ -16,7 +16,8 @@
         "magento/module-eav": "*",
         "magento/module-catalog": "*",
         "magento/module-store": "*",
-        "magento/module-swatches": "*"
+        "magento/module-swatches": "*",
+        "ext-mbstring": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.0"

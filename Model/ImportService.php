@@ -7,6 +7,7 @@ use Aichouchm\AttributeImport\Api\ImportServiceInterface;
 use Aichouchm\AttributeImport\Model\Attribute\OptionProcessor;
 use Aichouchm\AttributeImport\Model\Csv\StreamingReader;
 use Aichouchm\AttributeImport\Model\Csv\Validator as CsvValidator;
+use Aichouchm\AttributeImport\Service\StoreResolver;
 use Magento\Eav\Model\Config as EavConfig;
 use Magento\Framework\App\Cache\Manager as CacheManager;
 use Magento\Framework\App\ResourceConnection;
@@ -150,7 +151,7 @@ class ImportService implements ImportServiceInterface
 
         foreach (array_slice($rows, 1) as $row) {
             $storeCode = strtolower(trim($row[CsvValidator::COL_STORE_VIEW] ?? ''));
-            $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
+            $isAdmin   = in_array($storeCode, StoreResolver::ADMIN_STORE_CODES, true);
 
             if ($isAdmin) {
                 if ($currentGroup !== null) {

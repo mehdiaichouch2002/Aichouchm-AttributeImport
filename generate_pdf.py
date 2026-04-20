@@ -1448,7 +1448,7 @@ Result: [] — empty array means the file is valid, Import button enabled"""),
 
     foreach (array_slice($rows, 1) as $row) {   // skip header row at index 0
         $storeCode = strtolower(trim($row[CsvValidator::COL_STORE_VIEW] ?? ''));
-        $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
+        $isAdmin   = in_array($storeCode, StoreResolver::ADMIN_STORE_CODES, true);
 
         if ($isAdmin) {
             if ($currentGroup !== null) {
@@ -1503,11 +1503,13 @@ Result: [] — empty array means the file is valid, Import button enabled"""),
           "The brief (Section 4) defines the CSV format with <b>store_view = 'default'</b> "
           "as the global row — so both 'default' and 'admin' are accepted as aliases for store_id=0."),
         code(
-"""public function getStoreId(string $storeCode): int
+"""// Single source of truth — referenced in Validator and ImportService too.
+// No more ['admin','default'] literals scattered across 4 files.
+public const ADMIN_STORE_CODES = ['admin', 'default'];
+
+public function getStoreId(string $storeCode): int
 {
-    // Brief section 4 CSV uses 'default' for the global row.
-    // 'admin' accepted as well since it is Magento's internal admin store code.
-    if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+    if (in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true)) {
         return 0;
     }
     return (int) $this->storeManager->getStore($storeCode)->getId();
@@ -1515,7 +1517,7 @@ Result: [] — empty array means the file is valid, Import button enabled"""),
 
 public function isValidStoreCode(string $storeCode): bool
 {
-    if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+    if (in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true)) {
         return true;
     }
     return in_array($storeCode, $this->getAllStoreCodes(), true);
@@ -1912,8 +1914,8 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
                  "Not in the spec. Simplifies validation."],
                 ["Store code '0' alias",
                  "in_array(..., ['admin','default','0'])",
-                 "in_array(..., ['admin','default'])",
-                 "Nobody writes '0' as a store code in a CSV. Undocumented edge case."],
+                 "in_array(..., StoreResolver::ADMIN_STORE_CODES)",
+                 "Nobody writes '0' as a store code in a CSV. Literal array also extracted to a constant — single source of truth across Validator, ImportService, and StoreResolver."],
                 ["Log block DI injection",
                  "$logFile injected via di.xml as '/var/log/attribute_import.log', then stripped with str_replace('/var/','',...)",
                  "private const LOG_FILE = 'log/attribute_import.log'",
