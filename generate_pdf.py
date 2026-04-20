@@ -638,6 +638,14 @@ color,en,Teal,#008080,2,0          <- group 2: English translation"""),
             'onclick' => 'attributeImport.checkData();',
         ]);
 
+        // Add the View Log button — setLocation() is Magento's native JS page redirect
+        $this->buttonList->add('view-log-button', [
+            'label'   => __('View Log'),
+            'type'    => 'button',
+            'class'   => 'action-default',
+            'onclick' => 'setLocation(\'' . $this->getUrl('attributeimport/import/log') . '\')',
+        ]);
+
         // These three properties tell Container where to find its child form block
         $this->_objectId   = 'import_ids';
         $this->_blockGroup = 'Aichouchm_AttributeImport';
@@ -1860,8 +1868,9 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
 
         h2("view/adminhtml/templates/import/log.phtml"),
         filepath("Aichouchm_AttributeImport/view/adminhtml/templates/import/log.phtml"),
-        p("Renders the log lines in a dark monospace terminal-style box. Lines are colour-coded "
-          "by Monolog log level, detected by searching for the level string in the line."),
+        p("Renders the log lines in a dark monospace terminal-style box (<b>font-size: 1.5rem, "
+          "padding: 0.5rem</b>). Lines are colour-coded by Monolog log level, detected by "
+          "searching for the level string in the line."),
         code(
 """// Monolog line format:
 // [2026-04-15 14:32:01] AttributeImport.INFO: Import started — attribute: color [] []

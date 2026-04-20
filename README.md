@@ -43,7 +43,7 @@ bin/magento cache:flush
 
 **Stores → Attributes → Import Attributes**
 
-A secondary link to the import log is accessible from the same page.
+A **View Log** button on the import page opens the log viewer directly.
 
 ---
 
