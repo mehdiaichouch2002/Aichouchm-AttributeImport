@@ -29,6 +29,7 @@ class OptionProcessor
      * @param int $swatchType
      * @param AttributeInterface $attribute
      * @return array
+     * @throws Throwable
      */
     public function processGroups(
         array $groups,
