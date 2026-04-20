@@ -45,16 +45,4 @@ class StreamingReader
             fclose($handle);
         }
     }
-
-    /**
-     * @param string $filePath
-     * @return array
-     */
-    public function readHeader(string $filePath): array
-    {
-        foreach ($this->read($filePath) as $row) {
-            return $row;
-        }
-        return [];
-    }
 }

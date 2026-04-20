@@ -7,7 +7,7 @@ use Aichouchm\AttributeImport\Api\ImportServiceInterface;
 use Aichouchm\AttributeImport\Model\Attribute\OptionProcessor;
 use Aichouchm\AttributeImport\Model\Csv\StreamingReader;
 use Aichouchm\AttributeImport\Model\Csv\Validator as CsvValidator;
-use Magento\Eav\Api\AttributeRepositoryInterface;
+use Magento\Eav\Model\Config as EavConfig;
 use Magento\Framework\App\Cache\Manager as CacheManager;
 use Magento\Framework\App\ResourceConnection;
 use Psr\Log\LoggerInterface;
@@ -27,19 +27,19 @@ class ImportService implements ImportServiceInterface
      * @param StreamingReader $streamingReader
      * @param CsvValidator $csvValidator
      * @param OptionProcessor $optionProcessor
-     * @param AttributeRepositoryInterface $attributeRepository
+     * @param EavConfig $eavConfig
      * @param ResourceConnection $resourceConnection
      * @param CacheManager $cacheManager
      * @param LoggerInterface $logger
      */
     public function __construct(
-        private readonly StreamingReader              $streamingReader,
-        private readonly CsvValidator                $csvValidator,
-        private readonly OptionProcessor             $optionProcessor,
-        private readonly AttributeRepositoryInterface $attributeRepository,
-        private readonly ResourceConnection          $resourceConnection,
-        private readonly CacheManager                $cacheManager,
-        private readonly LoggerInterface             $logger
+        private readonly StreamingReader  $streamingReader,
+        private readonly CsvValidator     $csvValidator,
+        private readonly OptionProcessor  $optionProcessor,
+        private readonly EavConfig        $eavConfig,
+        private readonly ResourceConnection $resourceConnection,
+        private readonly CacheManager     $cacheManager,
+        private readonly LoggerInterface  $logger
     ) {}
 
     /**
@@ -54,19 +54,20 @@ class ImportService implements ImportServiceInterface
 
             $headerErrors = $this->csvValidator->validateHeaders($allRows[0] ?? []);
             if (!empty($headerErrors)) {
-                return ['is_valid' => false, 'errors' => $headerErrors, 'rows' => []];
+                return ['is_valid' => false, 'errors' => $headerErrors, 'rows' => [], 'swatch_type' => $swatchType];
             }
 
             $dataRows  = array_slice($allRows, 1);
             $rowErrors = $this->csvValidator->validateRows($dataRows, $attributeCode, $swatchType);
 
             return [
-                'is_valid' => empty($rowErrors),
-                'errors'   => $rowErrors,
-                'rows'     => $allRows,
+                'is_valid'   => empty($rowErrors),
+                'errors'     => $rowErrors,
+                'rows'       => $allRows,
+                'swatch_type' => $swatchType,
             ];
         } catch (Throwable $e) {
-            return ['is_valid' => false, 'errors' => [$e->getMessage()], 'rows' => []];
+            return ['is_valid' => false, 'errors' => [$e->getMessage()], 'rows' => [], 'swatch_type' => CsvValidator::SWATCH_NONE];
         }
     }
 
@@ -77,29 +78,26 @@ class ImportService implements ImportServiceInterface
      */
     public function import(string $filePath, string $attributeCode): array
     {
-        $this->logger->info(sprintf('[%s] Import started — attribute: %s', date('Y-m-d H:i:s'), $attributeCode));
+        $this->logger->info(sprintf('Import started — attribute: %s', $attributeCode));
 
         try {
             $validation = $this->validate($filePath, $attributeCode);
             if (!$validation['is_valid']) {
                 foreach ($validation['errors'] as $error) {
-                    $this->logger->error(sprintf('[%s] Validation error: %s', date('Y-m-d H:i:s'), $error));
+                    $this->logger->error(sprintf('Validation error: %s', $error));
                 }
                 return ['success' => false, 'messages' => $validation['errors'], 'imported' => 0, 'skipped' => 0];
             }
 
-            $attribute       = $this->attributeRepository->get(self::ENTITY_TYPE, $attributeCode);
-            $swatchType      = $this->csvValidator->getSwatchType($attributeCode);
+            $attribute       = $this->eavConfig->getAttribute(self::ENTITY_TYPE, $attributeCode);
+            $swatchType      = $validation['swatch_type'];
             $existingOptions = $this->loadExistingOptions((int) $attribute->getAttributeId());
-            $groups          = $this->groupRowsByOption($filePath, $swatchType);
+            $groups          = $this->groupRowsByOption($validation['rows']);
 
             $result = $this->optionProcessor->processGroups($groups, $existingOptions, $swatchType, $attribute);
 
             foreach ($result['skippedValues'] as $val) {
-                $this->logger->warning(sprintf(
-                    '[%s] Skipped: "%s" already exists for attribute "%s".',
-                    date('Y-m-d H:i:s'), $val, $attributeCode
-                ));
+                $this->logger->warning(sprintf('Skipped: "%s" already exists for attribute "%s".', $val, $attributeCode));
             }
 
             $this->cacheManager->clean(['eav', 'full_page', 'block_html']);
@@ -109,7 +107,7 @@ class ImportService implements ImportServiceInterface
                 $result['imported'],
                 $result['skipped']
             );
-            $this->logger->info(sprintf('[%s] %s', date('Y-m-d H:i:s'), $summary));
+            $this->logger->info($summary);
 
             return [
                 'success'  => true,
@@ -118,7 +116,7 @@ class ImportService implements ImportServiceInterface
                 'skipped'  => $result['skipped'],
             ];
         } catch (Throwable $e) {
-            $this->logger->error(sprintf('[%s] Unexpected error: %s', date('Y-m-d H:i:s'), $e->getMessage()));
+            $this->logger->error(sprintf('Unexpected error: %s', $e->getMessage()));
             return [
                 'success'  => false,
                 'messages' => [(string) __('An unexpected error occurred. Please check the import log.')],
@@ -142,20 +140,15 @@ class ImportService implements ImportServiceInterface
     }
 
     /**
-     * @param string $filePath
-     * @param int $swatchType
+     * @param array $rows
      * @return array
      */
-    private function groupRowsByOption(string $filePath, int $swatchType): array
+    private function groupRowsByOption(array $rows): array
     {
         $groups       = [];
         $currentGroup = null;
 
-        foreach ($this->streamingReader->read($filePath) as $lineNumber => $row) {
-            if ($lineNumber === 0) {
-                continue;
-            }
-
+        foreach (array_slice($rows, 1) as $row) {
             $storeCode = strtolower(trim($row[CsvValidator::COL_STORE_VIEW] ?? ''));
             $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
 

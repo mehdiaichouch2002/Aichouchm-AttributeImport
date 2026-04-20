@@ -321,7 +321,7 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 |   |-- Import/Source/Attributes.php    <- attribute dropdown source model
 |   `-- ImportService.php               <- main orchestrator
 |-- Controller/Adminhtml/
-|   |-- AbstractAction.php              <- shared ADMIN_RESOURCE constant
+|   |-- AbstractAction.php              <- ADMIN_RESOURCE + shared request helpers
 |   `-- Import/
 |       |-- Index.php                   <- render the import page
 |       |-- Preview.php                 <- AJAX: Check Data
@@ -499,15 +499,39 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 
         h2("Controller/Adminhtml/AbstractAction.php"),
         filepath("Aichouchm_AttributeImport/Controller/Adminhtml/AbstractAction.php"),
-        p("Base class for all four admin controllers. Defines <b>ADMIN_RESOURCE</b> once — "
-          "the single source of truth that Magento's Action class reads to gate access."),
+        p("Base class for all four admin controllers. Defines <b>ADMIN_RESOURCE</b> once and "
+          "houses the two request-validation helpers shared by Preview and Process."),
         code(
 """abstract class AbstractAction extends Action
 {
-    /**
-     * Authorization resource
-     */
     public const ADMIN_RESOURCE = 'Aichouchm_AttributeImport::import_attributes';
+
+    // Shared by Preview and Process — moved here to avoid duplication.
+    protected function assertValidRequest(): void
+    {
+        $files = $this->getRequest()->getFiles()->toArray();
+
+        if (empty($files['import_file']['tmp_name'])) {
+            throw new Exception('Please upload a CSV file.');
+        }
+        if (strtolower(pathinfo($files['import_file']['name'], PATHINFO_EXTENSION)) !== 'csv') {
+            throw new Exception('Only CSV files are allowed.');
+        }
+        if (empty($this->getRequest()->getParam('attribute_code'))) {
+            throw new Exception('Please select an attribute.');
+        }
+    }
+
+    protected function getUploadedFilePath(): string
+    {
+        $files    = $this->getRequest()->getFiles()->toArray();
+        $filePath = $files['import_file']['tmp_name'] ?? '';
+
+        if (!is_readable($filePath)) {
+            throw new Exception('Cannot read the uploaded file.');
+        }
+        return $filePath;
+    }
 }"""),
         callout("info", "All four controllers (Index, Preview, Process, Log) extend this class. "
                 "Before this refactor each controller redeclared the same constant — a rename "
@@ -734,11 +758,13 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
     public function getPreviewUrl(): string
     {
         return $this->getUrl('attributeimport/import/preview');
+        // e.g. https://magento.local/admin/attributeimport/import/preview/key/abc123/
     }
 
     public function getProcessUrl(): string
     {
         return $this->getUrl('attributeimport/import/process');
+        // e.g. https://magento.local/admin/attributeimport/import/process/key/abc123/
     }
 }"""),
         p("<b>getUrl()</b> is inherited from <b>Magento\\Backend\\Block\\Template</b>. "
@@ -889,57 +915,146 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 {
     $result = $this->resultJsonFactory->create();
     try {
-        $this->assertValidRequest();       // validate the HTTP request itself
-        $attributeCode = $this->getRequest()->getParam('attribute_code');
-        $filePath      = $this->getUploadedFilePath();
+        // Step 1 — guard: reject bad HTTP requests before touching the file
+        $this->assertValidRequest();
 
+        // Step 2 — read the two POST inputs
+        $attributeCode = $this->getRequest()->getParam('attribute_code');  // e.g. 'color'
+        $filePath      = $this->getUploadedFilePath();                     // e.g. '/tmp/phpAb3x9'
+
+        // Step 3 — validate the CSV (headers + every data row)
         $validation = $this->importService->validate($filePath, $attributeCode);
-        $html       = $this->renderPreviewBlock($validation['rows'], $validation['errors']);
 
+        // Step 4 — render the preview table as an HTML string (whether valid or not)
+        $html = $this->renderPreviewBlock($validation['rows'], $validation['errors']);
+
+        // Step 5 — return JSON; JS uses is_valid to decide whether to enable Import button
         return $result->setData([
             'success'  => true,
-            'data'     => $html,        // rendered HTML table
+            'data'     => $html,
             'is_valid' => $validation['is_valid'],
         ]);
     } catch (Exception $e) {
+        // assertValidRequest() or getUploadedFilePath() threw — return error JSON
         return $result->setData(['success' => false, 'message' => $e->getMessage()]);
     }
 }"""),
         space(),
-        h3("assertValidRequest()  — validates the HTTP layer"),
+        h3("Step 1  —  assertValidRequest()"),
+        p("Checks the HTTP layer before any file reading happens. Three conditions, each "
+          "throws an Exception that is caught and returned as error JSON:"),
         code(
 """private function assertValidRequest(): void
 {
     $files = $this->getRequest()->getFiles()->toArray();
 
+    // 1a. A file must have been uploaded
     if (empty($files['import_file']['tmp_name'])) {
         throw new Exception('Please upload a CSV file.');
     }
-    // pathinfo() extracts the extension without executing the filename
+    // 1b. Extension must be .csv  (pathinfo() reads the name, never executes it)
     if (strtolower(pathinfo($files['import_file']['name'], PATHINFO_EXTENSION)) !== 'csv') {
         throw new Exception('Only CSV files are allowed.');
     }
+    // 1c. The attribute dropdown must have a selection
     if (empty($this->getRequest()->getParam('attribute_code'))) {
         throw new Exception('Please select an attribute.');
     }
-}"""),
-        callout("warn", "This check is about the HTTP request, not the CSV content. It runs "
-                "before any file parsing. The CSV content is validated separately by Validator."),
+}
+
+// If any check fails, execute() catches the Exception and returns:
+// { "success": false, "message": "Only CSV files are allowed." }"""),
+        callout("warn", "This validates the HTTP request only — not the CSV content. "
+                "CSV content (column names, row values) is validated later by Validator, "
+                "never here."),
         space(),
-        h3("renderPreviewBlock()  — renders the preview table as an HTML string"),
+        h3("Step 2  —  getUploadedFilePath()"),
+        p("Reads the tmp path PHP wrote the upload to and confirms it is readable:"),
+        code(
+"""private function getUploadedFilePath(): string
+{
+    $files    = $this->getRequest()->getFiles()->toArray();
+    $filePath = $files['import_file']['tmp_name'] ?? '';  // e.g. '/tmp/phpAb3x9'
+
+    if (!is_readable($filePath)) {
+        throw new Exception('Cannot read the uploaded file.');
+    }
+    return $filePath;
+}"""),
+        space(),
+        h3("Step 3  —  importService->validate()  (the key call)"),
+        p("This is where all CSV logic runs. The controller passes the tmp path and the "
+          "selected attribute code. The return value is a three-key array:"),
+        code(
+"""$validation = $this->importService->validate('/tmp/phpAb3x9', 'color');
+
+// What $validation contains for our running example (valid CSV):
+[
+    'is_valid' => true,
+    'errors'   => [],          // empty — no validation errors
+    'rows'     => [
+        ['attribute_code','store_view','value','hex_code','sort_order','is_default'],  // header
+        ['color','default','Red','#FF0000','1','1'],
+        ['color','fr','Rouge','#FF0000','1','1'],
+        ['color','en','Red','#FF0000','1','1'],
+        ['color','default','Blue','#0000FF','2','0'],
+        ['color','fr','Bleu','#0000FF','2','0'],
+        ['color','en','Blue','#0000FF','2','0'],
+    ],
+]
+
+// What $validation contains when a row is invalid:
+[
+    'is_valid' => false,
+    'errors'   => [
+        'Row 2: hex_code "#ZZZ" is not a valid hex colour.',
+        'Row 4: sort_order "abc" must be a positive integer.',
+    ],
+    'rows'     => [ ... ],   // all rows still returned so the table can be shown
+]"""),
+        callout("info", "rows is always returned even when is_valid is false. "
+                "The preview table shows the full CSV with the error list above it — "
+                "the admin can see exactly which rows failed without re-uploading."),
+        space(),
+        h3("Step 4  —  renderPreviewBlock()"),
+        p("Turns the rows + errors arrays into an HTML string. Uses a minimal standalone "
+          "layout — no full admin page load:"),
         code(
 """private function renderPreviewBlock(array $rows, array $errors): string
 {
     return $this->layoutFactory->create()
         ->createBlock(PreviewBlock::class)
         ->setTemplate('Aichouchm_AttributeImport::import/preview.phtml')
-        ->setData(compact('rows', 'errors'))
-        ->toHtml();
+        ->setData(compact('rows', 'errors'))   // passes both variables to the template
+        ->toHtml();                            // executes template, returns HTML string
+}
+
+// $html will be something like:
+// '<div class=\"admin__data-grid-outer-wrap\"><table ...>...</table></div>
+//  <p class=\"note\">6 data rows found. <strong>All rows are valid...</strong></p>'"""),
+        space(),
+        h3("Step 5  —  JSON response"),
+        p("The JSON the controller returns. jQuery reads it in <b>checkData()</b>:"),
+        code(
+"""// Valid CSV — JS injects $html into #preview-container and enables Import button:
+{
+    "success":  true,
+    "data":     "<table ...>...</table>",   // rendered HTML
+    "is_valid": true
+}
+
+// Invalid CSV — JS shows error messages, Import button stays disabled:
+{
+    "success":  true,
+    "data":     "<div class=\\"messages\\">...</div><table ...>",
+    "is_valid": false
+}
+
+// HTTP/request error (assertValidRequest threw) — JS shows the message string:
+{
+    "success": false,
+    "message": "Please upload a CSV file."
 }"""),
-        p("<b>layoutFactory->create()</b> creates a minimal standalone layout — just enough to "
-          "render one block, without loading the full admin page structure. "
-          "<b>toHtml()</b> executes the template and returns the HTML string that will be "
-          "embedded in the JSON response and injected into the page via jQuery."),
         space(),
 
         h2("Api/ImportServiceInterface.php"),
@@ -992,19 +1107,6 @@ yield 3 => ['color','en','Red','#FF0000','1','1']
 yield 4 => ['color','default','Blue','#0000FF','2','0']
 yield 5 => ['color','fr','Bleu','#0000FF','2','0']
 yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
-        space(),
-        h3("readHeader()  — convenience method"),
-        code(
-"""public function readHeader(string $filePath): array
-{
-    foreach ($this->read($filePath) as $row) {
-        return $row;  // returns immediately after the first yield
-    }
-    return [];
-}"""),
-        p("Used when only the header row is needed (e.g. to detect swatch type before "
-          "full validation). The generator is discarded after the first row — "
-          "the file is not read further."),
         PageBreak(),
 
         h2("Model/Csv/Validator.php"),
@@ -1052,11 +1154,16 @@ yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
         ),
         space(),
         code(
-"""public function getSwatchType(string $attributeCode): int
+"""// Uses Magento\\Eav\\Model\\Config — three cache layers:
+//   1. in-memory $this->attributes[...] — free on repeated calls within a request
+//   2. Magento cache (eav cache type) — survives across requests
+//   3. DB fallback — only on a cold cache
+// Old approach: attributeFactory->create()->loadByCode() — always hits the DB.
+
+public function getSwatchType(string $attributeCode): int
 {
-    $attribute  = $this->attributeFactory->create()
-                       ->loadByCode(Product::ENTITY, $attributeCode);
-    $additional = json_decode($attribute->getAdditionalData() ?? '{}', true);
+    $attribute  = $this->eavConfig->getAttribute(Product::ENTITY, $attributeCode);
+    $additional = json_decode($attribute->getAdditionalData() ?? '{}', true, 512, JSON_THROW_ON_ERROR);
 
     return match ($additional['swatch_input_type'] ?? null) {
         'visual' => self::SWATCH_VISUAL,  // hex_code must be a valid #RRGGBB
@@ -1105,7 +1212,6 @@ public function validateHeaders(array $headerRow): array
                 ["$adminValues",     "array",  "All default-store values seen — detects CSV duplicates"],
                 ["$optionStores",    "array",  "Store codes in the current option group — detects duplicate stores"],
                 ["$defaultSelected", "bool",   "Whether any row has is_default=1 — only one allowed"],
-                ["$expectAdminNext", "bool",   "Whether the next row must be a default/admin row"],
             ],
             col_widths=[3.5*cm, 2*cm, 11.5*cm]
         ),
@@ -1262,13 +1368,13 @@ Result: [] (empty = valid)"""),
                     'imported' => 0, 'skipped' => 0];
         }
 
-        // 2. Load existing options once (O(1) lookup per option during processing)
-        $attribute       = $this->attributeRepository->get('catalog_product', $attributeCode);
-        $swatchType      = $this->csvValidator->getSwatchType($attributeCode);
+        // 2. Reuse swatch type and rows from validate() — no second file read, no second DB call
+        $attribute       = $this->eavConfig->getAttribute('catalog_product', $attributeCode);
+        $swatchType      = $validation['swatch_type'];
         $existingOptions = $this->loadExistingOptions((int) $attribute->getAttributeId());
 
-        // 3. Second streaming pass: group rows by option
-        $groups = $this->groupRowsByOption($filePath, $swatchType);
+        // 3. Group already-loaded rows by option (no file re-read)
+        $groups = $this->groupRowsByOption($validation['rows'], $swatchType);
 
         // 4. Write to DB
         $result = $this->optionProcessor->processGroups(
@@ -1376,52 +1482,55 @@ Result: [] (empty = valid)"""),
         h2("Service/StoreResolver.php"),
         filepath("Aichouchm_AttributeImport/Service/StoreResolver.php"),
         p("Maps store codes from the CSV to Magento store_ids for database writes. "
-          "The critical rule: the CSV uses 'default' to mean the admin (global) store, "
-          "which has store_id=0 in Magento's EAV schema."),
+          "The brief (Section 4) defines the CSV format with <b>store_view = 'default'</b> "
+          "as the global row — so both 'default' and 'admin' are accepted as aliases for store_id=0."),
         code(
-"""class StoreResolver
+"""public function getStoreId(string $storeCode): int
 {
-    // 'default' and 'admin' both mean store_id=0 (the global admin store)
-    // store_id=0 is the fallback used when no store-specific label exists
-
-    public function getStoreId(string $storeCode): int
-    {
-        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
-            return 0;
-        }
-        return (int) $this->storeManager->getStore($storeCode)->getId();
+    // Brief section 4 CSV uses 'default' for the global row.
+    // 'admin' accepted as well since it is Magento's internal admin store code.
+    if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+        return 0;
     }
+    return (int) $this->storeManager->getStore($storeCode)->getId();
+}
 
-    public function isValidStoreCode(string $storeCode): bool
-    {
-        if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
-            return true;
-        }
-        return in_array($storeCode, $this->getAllStoreCodes(), true);
+public function isValidStoreCode(string $storeCode): bool
+{
+    if (in_array(strtolower($storeCode), ['admin', 'default'], true)) {
+        return true;
     }
+    return in_array($storeCode, $this->getAllStoreCodes(), true);
+}
 
-    public function getAllStoreCodes(): array
-    {
-        $codes = [];
-        foreach ($this->storeManager->getStores() as $store) {
-            $codes[] = $store->getCode();
-        }
-        return $codes;  // e.g. ['default', 'fr', 'en']
+// Memoized — storeManager->getStores() is only called once per request.
+// validateRows() calls isValidStoreCode() once per data row — without memoization
+// a 500-row CSV would hit StoreManager 500 times.
+private array $storeCodes = [];
+
+public function getAllStoreCodes(): array
+{
+    if (!empty($this->storeCodes)) {
+        return $this->storeCodes;
     }
+    foreach ($this->storeManager->getStores() as $store) {
+        $this->storeCodes[] = $store->getCode();
+    }
+    return $this->storeCodes;
 }"""),
         p("Running example — mapping every CSV store_view to a DB store_id:"),
         code(
 """// store_view column values from the running example CSV:
-getStoreId('default') -> 0   // intercepted before StoreManager — admin global store
+getStoreId('default') -> 0   // intercepted — brief defines this as the global row
 getStoreId('fr')      -> 2   // StoreManager lookup — French store view
 getStoreId('en')      -> 3   // StoreManager lookup — English store view
 
 // getAllStoreCodes() on a store with fr + en views returns:
-['fr', 'en']   // default/admin are aliases, not returned by getStores()"""),
+['default', 'fr', 'en']"""),
         callout("warn", "StoreManager->getStore('default') returns store_id=1 (the Default "
                 "Store View), NOT store_id=0. Passing 'default' through StoreManager would "
                 "save labels to the wrong store. The explicit alias intercepts 'default'/'admin' "
-                "before reaching StoreManager."),
+                "before reaching StoreManager, as required by the brief's CSV format."),
         space(),
 
         h2("Model/Attribute/OptionProcessor.php"),
@@ -1504,49 +1613,58 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
 ): void {
     $connection = $this->resourceConnection->getConnection();
 
-    // 1. One INSERT per option — required to capture each lastInsertId
-    //    Cannot use insertMultiple here because we need the DB-assigned option_id
-    //    for each row before we can build the label/swatch rows.
-    $keyToOptionId = [];
-    foreach ($newOptions as $key => $optionData) {
-        $connection->insert('eav_attribute_option', $optionData);
-        $keyToOptionId[$key] = (int) $connection->lastInsertId();
-    }
+    // All writes wrapped in a transaction — if any query fails, nothing is committed.
+    // Without this, a crash after options are inserted but before labels are written
+    // would leave orphan rows in eav_attribute_option with no labels.
+    $connection->beginTransaction();
+    try {
+        // 1. One INSERT per option — required to capture each lastInsertId
+        //    Cannot use insertMultiple here because we need the DB-assigned option_id
+        //    for each row before we can build the label/swatch rows.
+        $keyToOptionId = [];
+        foreach ($newOptions as $key => $optionData) {
+            $connection->insert('eav_attribute_option', $optionData);
+            $keyToOptionId[$key] = (int) $connection->lastInsertId();
+        }
 
-    // 2. ALL labels in ONE query
-    //    Replace temporary 'new_0' keys with real option_ids
-    $labelInserts = [];
-    foreach ($labelRows as $lr) {
-        $labelInserts[] = [
-            'option_id' => $keyToOptionId[$lr['key']],
-            'store_id'  => $lr['store_id'],
-            'value'     => $lr['value'],
-        ];
-    }
-    $connection->insertMultiple('eav_attribute_option_value', $labelInserts);
-
-    // 3. Set is_default on the attribute record if any option had is_default=1
-    if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
-        $connection->update('eav_attribute',
-            ['default_value' => (string) $keyToOptionId[$defaultKey]],
-            ['attribute_id = ?' => $attribute->getAttributeId()]
-        );
-    }
-
-    // 4. ALL swatches in ONE query
-    //    insertOnDuplicate: if (option_id, store_id) already exists, update it
-    if (!empty($swatchRows)) {
-        $swatchInserts = [];
-        foreach ($swatchRows as $sr) {
-            $swatchInserts[] = [
-                'option_id' => $keyToOptionId[$sr['key']],
-                'store_id'  => $sr['store_id'],
-                'type'      => $sr['type'],
-                'value'     => $sr['value'],
+        // 2. ALL labels in ONE query
+        $labelInserts = [];
+        foreach ($labelRows as $lr) {
+            $labelInserts[] = [
+                'option_id' => $keyToOptionId[$lr['key']],
+                'store_id'  => $lr['store_id'],
+                'value'     => $lr['value'],
             ];
         }
-        $connection->insertOnDuplicate('eav_attribute_option_swatch',
-            $swatchInserts, ['type', 'value']);
+        $connection->insertMultiple('eav_attribute_option_value', $labelInserts);
+
+        // 3. Set is_default on the attribute record if any option had is_default=1
+        if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
+            $connection->update('eav_attribute',
+                ['default_value' => (string) $keyToOptionId[$defaultKey]],
+                ['attribute_id = ?' => $attribute->getAttributeId()]
+            );
+        }
+
+        // 4. ALL swatches in ONE query
+        if (!empty($swatchRows)) {
+            $swatchInserts = [];
+            foreach ($swatchRows as $sr) {
+                $swatchInserts[] = [
+                    'option_id' => $keyToOptionId[$sr['key']],
+                    'store_id'  => $sr['store_id'],
+                    'type'      => $sr['type'],
+                    'value'     => $sr['value'],
+                ];
+            }
+            $connection->insertOnDuplicate('eav_attribute_option_swatch',
+                $swatchInserts, ['type', 'value']);
+        }
+
+        $connection->commit();
+    } catch (Throwable $e) {
+        $connection->rollBack();
+        throw $e;  // re-throw so ImportService can log and return failure
     }
 }"""),
         p("Total DB queries for N new options (each with S store views):"),
@@ -1808,6 +1926,192 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
             col_widths=[3.5*cm, 4.5*cm, 3.5*cm, 5.5*cm]
         ),
         space(2),
+        hr(),
+        PageBreak(),
+
+        # ── Section 10 — Demo Test Plan ────────────────────────────────────────
+        h1("10  Demo Test Plan"),
+        p("All test files are in <b>Test/sample/</b>. Run the tests in order — "
+          "Tests 4 and 7 depend on data written by earlier tests."),
+        space(),
+        simple_table(
+            ["File", "Attribute", "Purpose"],
+            [
+                ["valid_color.csv",    "color (visual swatch)", "3 options: Red, Blue, Green — fr + en translations"],
+                ["invalid_color.csv",  "color (visual swatch)", "4 deliberate errors — validation smoke test"],
+                ["duplicate_color.csv","color (visual swatch)", "Red + Blue already in DB + Yellow new — duplicate skip test"],
+                ["valid_material.csv", "material (plain select)","2 options: Cotton, Polyester — hex_code empty"],
+                ["invalid_material.csv","material (plain select)","3 deliberate errors — validation for non-swatch attribute"],
+            ],
+            col_widths=[5*cm, 4.5*cm, 7.5*cm]
+        ),
+        space(),
+
+        h2("Test 1 — Installation"),
+        code(
+"""bin/magento module:enable Aichouchm_AttributeImport
+bin/magento setup:upgrade
+bin/magento cache:flush"""),
+        p("Expected: no errors. Module appears in <b>bin/magento module:status</b> as enabled."),
+        space(),
+
+        h2("Test 2 — Navigation & UI"),
+        p("Go to <b>Stores → Attributes → Import Attributes</b>."),
+        simple_table(
+            ["What to verify", "Expected"],
+            [
+                ["Menu entry",      "\"Import Attributes\" appears under Stores → Attributes"],
+                ["Attribute dropdown","Shows only user-defined select/multiselect — no system attributes"],
+                ["File upload",     "Accepts .csv files"],
+                ["Check Data btn",  "Present and clickable"],
+                ["Import btn",      "Present — enabled only after a successful Check Data"],
+            ],
+            col_widths=[5*cm, 12*cm]
+        ),
+        space(),
+
+        h2("Test 3 — Color: Validation Errors  (invalid_color.csv)"),
+        p("Select <b>color</b>. Upload <b>invalid_color.csv</b>. Click <b>Check Data</b>."),
+        code(
+"""attribute_code,store_view,value,hex_code,sort_order,is_default
+color,default,Red,#FF0000,abc,1      ← Row 2: sort_order not numeric
+color,fr,Rouge,#FF0000,1,1
+color,default,Blue,notahex,2,1       ← Row 4: bad hex + is_default=1 duplicate
+color,fr,Bleu,#0000FF,2,0
+color,default,Red,#008000,3,0        ← Row 6: "Red" already seen in row 2
+color,fr,Vert,#008000,3,0"""),
+        simple_table(
+            ["Row", "Expected error"],
+            [
+                ["2", "sort_order must be a number, got \"abc\""],
+                ["4", "is_default=1 is already set for another option"],
+                ["4", "hex_code \"notahex\" is not a valid hex colour (expected #RRGGBB)"],
+                ["6", "Duplicate option value \"Red\" within the CSV (admin store)"],
+            ],
+            col_widths=[2*cm, 15*cm]
+        ),
+        callout("warn", "4 errors shown. Import button stays blocked. Nothing written to DB."),
+        space(),
+
+        h2("Test 4 — Color: Happy Path  (valid_color.csv)"),
+        p("Select <b>color</b>. Upload <b>valid_color.csv</b>. Click <b>Check Data</b>."),
+        code(
+"""attribute_code,store_view,value,hex_code,sort_order,is_default
+color,default,Red,#FF0000,1,1
+color,fr,Rouge,#FF0000,1,1
+color,en,Red,#FF0000,1,1
+color,default,Blue,#0000FF,2,0
+color,fr,Bleu,#0000FF,2,0
+color,en,Blue,#0000FF,2,0
+color,default,Green,#008000,3,0
+color,fr,Vert,#008000,3,0
+color,en,Green,#008000,3,0"""),
+        simple_table(
+            ["Step", "Expected"],
+            [
+                ["Check Data", "Preview shows all 9 rows. 0 errors. Import button enabled."],
+                ["Import",     "\"Import complete. Imported: 3, Skipped (already exist): 0\""],
+                ["Verify",     "Stores → Attributes → Product → color → Manage Options: Red, Blue, Green with fr/en labels"],
+            ],
+            col_widths=[3*cm, 14*cm]
+        ),
+        space(),
+
+        h2("Test 5 — Color: Duplicate Skip  (duplicate_color.csv)"),
+        p("Run AFTER Test 4. Select <b>color</b>. Upload <b>duplicate_color.csv</b>."),
+        code(
+"""attribute_code,store_view,value,hex_code,sort_order,is_default
+color,default,Red,#FF0000,1,1        ← already in DB from Test 4
+color,fr,Rouge,#FF0000,1,1
+color,en,Red,#FF0000,1,1
+color,default,Blue,#0000FF,2,0       ← already in DB from Test 4
+color,fr,Bleu,#0000FF,2,0
+color,en,Blue,#0000FF,2,0
+color,default,Yellow,#FFFF00,4,0     ← new option
+color,fr,Jaune,#FFFF00,4,0
+color,en,Yellow,#FFFF00,4,0"""),
+        simple_table(
+            ["Step", "Expected"],
+            [
+                ["Check Data", "0 validation errors — duplicates are a DB-level check, not a CSV check."],
+                ["Import",     "\"Imported: 1, Skipped (already exist): 2\" — only Yellow created."],
+                ["Verify",     "color attribute now has Red, Blue, Green (from Test 4) + Yellow."],
+            ],
+            col_widths=[3*cm, 14*cm]
+        ),
+        callout("info", "Per brief Rule 5: duplicates are logged as warnings and skipped — never overwritten."),
+        space(),
+
+        h2("Test 6 — Material: Validation Errors  (invalid_material.csv)"),
+        p("Select <b>material</b>. Upload <b>invalid_material.csv</b>. Click <b>Check Data</b>."),
+        code(
+"""attribute_code,store_view,value,hex_code,sort_order,is_default
+material,default,Cotton,,abc,1       ← Row 2: sort_order not numeric
+material,fr,Coton,,1,1
+material,default,Polyester,,2,2      ← Row 4: is_default must be 0 or 1
+material,fr,Polyester,,2,0
+material,default,Cotton,,3,0         ← Row 6: "Cotton" duplicate
+material,fr,Lin,,3,0"""),
+        simple_table(
+            ["Row", "Expected error"],
+            [
+                ["2", "sort_order must be a number, got \"abc\""],
+                ["4", "is_default must be 0 or 1, got \"2\""],
+                ["6", "Duplicate option value \"Cotton\" within the CSV (admin store)"],
+            ],
+            col_widths=[2*cm, 15*cm]
+        ),
+        callout("warn", "3 errors shown. hex_code is empty throughout — no swatch errors because material is plain select."),
+        space(),
+
+        h2("Test 7 — Material: Happy Path  (valid_material.csv)"),
+        p("Select <b>material</b>. Upload <b>valid_material.csv</b>. "
+          "hex_code column is empty — module must not error."),
+        code(
+"""attribute_code,store_view,value,hex_code,sort_order,is_default
+material,default,Cotton,,1,1
+material,fr,Coton,,1,1
+material,en,Cotton,,1,1
+material,default,Polyester,,2,0
+material,fr,Polyester,,2,0
+material,en,Polyester,,2,0"""),
+        simple_table(
+            ["Step", "Expected"],
+            [
+                ["Check Data", "0 errors. Empty hex_code cells ignored — material is not a visual swatch."],
+                ["Import",     "\"Imported: 2, Skipped (already exist): 0\""],
+                ["Verify",     "material attribute has Cotton + Polyester with fr/en labels."],
+            ],
+            col_widths=[3*cm, 14*cm]
+        ),
+        space(),
+
+        h2("Test 8 — Log Viewer"),
+        p("Navigate to <b>Stores → Attributes → Import Attributes → View Log</b>."),
+        simple_table(
+            ["What to verify", "Expected"],
+            [
+                ["INFO entries",    "\"Import started\" + \"Import complete\" for every import run"],
+                ["WARNING entries", "\"Skipped: Red already exists\" and \"Skipped: Blue already exists\" from Test 5"],
+                ["ERROR entries",   "Validation error messages from Tests 3 and 6"],
+                ["Colour coding",   "INFO=green, WARNING=amber, ERROR=red"],
+                ["Timestamps",      "Every line has date + time prefix"],
+            ],
+            col_widths=[5*cm, 12*cm]
+        ),
+        space(),
+
+        h2("Test 9 — ACL / Permissions"),
+        p("Go to <b>System → Permissions → User Roles</b>. Edit any role."),
+        simple_table(
+            ["What to verify", "Expected"],
+            [
+                ["Resource tree", "Stores → Stores Attributes → Import Attributes is a grantable resource"],
+                ["Deny access",   "Role without resource sees no menu entry and gets 403 on direct URL"],
+            ],
+            col_widths=[4*cm, 13*cm]
+        ),
+        space(),
         hr(),
         space(0.5),
         Paragraph(

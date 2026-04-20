@@ -4,8 +4,9 @@ declare(strict_types=1);
 namespace Aichouchm\AttributeImport\Model\Csv;
 
 use Aichouchm\AttributeImport\Service\StoreResolver;
+use JsonException;
 use Magento\Catalog\Model\Product;
-use Magento\Catalog\Model\ResourceModel\Eav\AttributeFactory;
+use Magento\Eav\Model\Config as EavConfig;
 
 /**
  * Class Validator
@@ -40,21 +41,22 @@ class Validator
 
     /**
      * @param StoreResolver $storeResolver
-     * @param AttributeFactory $attributeFactory
+     * @param EavConfig $eavConfig
      */
     public function __construct(
-        private readonly StoreResolver    $storeResolver,
-        private readonly AttributeFactory $attributeFactory
+        private readonly StoreResolver $storeResolver,
+        private readonly EavConfig     $eavConfig
     ) {}
 
     /**
      * @param string $attributeCode
      * @return int
+     * @throws JsonException
      */
     public function getSwatchType(string $attributeCode): int
     {
-        $attribute  = $this->attributeFactory->create()->loadByCode(Product::ENTITY, $attributeCode);
-        $additional = json_decode($attribute->getAdditionalData() ?? '{}', true);
+        $attribute  = $this->eavConfig->getAttribute(Product::ENTITY, $attributeCode);
+        $additional = json_decode($attribute->getAdditionalData() ?? '{}', true, 512, JSON_THROW_ON_ERROR);
 
         return match ($additional['swatch_input_type'] ?? null) {
             'visual' => self::SWATCH_VISUAL,
@@ -101,7 +103,6 @@ class Validator
         $adminValues     = [];
         $optionStores    = [];
         $defaultSelected = false;
-        $expectAdminNext = true;
 
         foreach ($rows as $index => $row) {
             $rowNum    = $index + 2;
@@ -109,13 +110,16 @@ class Validator
             $isAdmin   = $this->isAdminStoreCode($storeCode);
 
             foreach ([
-                self::COL_ATTRIBUTE_CODE => 'attribute_code',
-                self::COL_STORE_VIEW     => 'store_view',
-                self::COL_VALUE          => 'value',
+                self::COL_STORE_VIEW => 'store_view',
+                self::COL_VALUE      => 'value',
             ] as $col => $name) {
                 if (($row[$col] ?? '') === '') {
                     $errors[] = (string) __('Row %1: "%2" is required and cannot be empty.', $rowNum, $name);
                 }
+            }
+
+            if (mb_strlen($row[self::COL_VALUE] ?? '', 'UTF-8') > 255) {
+                $errors[] = (string) __('Row %1: value exceeds the 255 character limit.', $rowNum);
             }
 
             if (($row[self::COL_ATTRIBUTE_CODE] ?? '') !== $attributeCode) {
@@ -125,7 +129,6 @@ class Validator
 
             if ($isAdmin) {
                 $optionStores    = [];
-                $expectAdminNext = false;
                 $value           = $row[self::COL_VALUE] ?? '';
 
                 if (in_array($value, $adminValues, true)) {
@@ -134,9 +137,13 @@ class Validator
                 }
                 $adminValues[] = $value;
 
-                if (!is_numeric($row[self::COL_SORT_ORDER] ?? '')) {
+                $sortOrderVal = $row[self::COL_SORT_ORDER] ?? '';
+                if (!is_numeric($sortOrderVal)) {
                     $errors[] = (string) __('Row %1: sort_order must be a number, got "%2".',
-                        $rowNum, $row[self::COL_SORT_ORDER] ?? '');
+                        $rowNum, $sortOrderVal);
+                } elseif ((int) $sortOrderVal < 0) {
+                    $errors[] = (string) __('Row %1: sort_order must be 0 or greater, got "%2".',
+                        $rowNum, $sortOrderVal);
                 }
 
                 $isDefaultVal = $row[self::COL_IS_DEFAULT] ?? '';
@@ -161,13 +168,7 @@ class Validator
                     }
                 }
             } else {
-                if ($expectAdminNext) {
-                    $errors[] = (string) __('Row %1: First row must have store_view "admin" or "default". Got "%2".',
-                        $rowNum, $storeCode);
-                    $expectAdminNext = false;
-                }
-
-                if (!$this->storeResolver->isValidStoreCode($storeCode)) {
+                if ($storeCode !== '' && !$this->storeResolver->isValidStoreCode($storeCode)) {
                     $errors[] = (string) __('Row %1: Store view "%2" does not exist in Magento.', $rowNum, $storeCode);
                 }
 

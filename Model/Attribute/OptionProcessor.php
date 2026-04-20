@@ -7,6 +7,7 @@ use Aichouchm\AttributeImport\Model\Csv\Validator as CsvValidator;
 use Aichouchm\AttributeImport\Service\StoreResolver;
 use Magento\Eav\Api\Data\AttributeInterface;
 use Magento\Framework\App\ResourceConnection;
+use Throwable;
 
 /**
  * Class OptionProcessor
@@ -109,35 +110,43 @@ class OptionProcessor
         $valueTable  = $this->resourceConnection->getTableName('eav_attribute_option_value');
         $swatchTable = $this->resourceConnection->getTableName('eav_attribute_option_swatch');
 
-        // Insert one row at a time to capture each lastInsertId before batching labels/swatches
-        $keyToOptionId = [];
-        foreach ($newOptions as $key => $optionData) {
-            $connection->insert($optionTable, $optionData);
-            $keyToOptionId[$key] = (int) $connection->lastInsertId();
-        }
-
-        if (!empty($labelRows)) {
-            $rows = [];
-            foreach ($labelRows as $lr) {
-                $rows[] = ['option_id' => $keyToOptionId[$lr['key']], 'store_id' => $lr['store_id'], 'value' => $lr['value']];
+        $connection->beginTransaction();
+        try {
+            // Insert one row at a time to capture each lastInsertId before batching labels/swatches
+            $keyToOptionId = [];
+            foreach ($newOptions as $key => $optionData) {
+                $connection->insert($optionTable, $optionData);
+                $keyToOptionId[$key] = (int) $connection->lastInsertId();
             }
-            $connection->insertMultiple($valueTable, $rows);
-        }
 
-        if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
-            $connection->update(
-                $this->resourceConnection->getTableName('eav_attribute'),
-                ['default_value' => (string) $keyToOptionId[$defaultKey]],
-                ['attribute_id = ?' => $attribute->getAttributeId()]
-            );
-        }
-
-        if (!empty($swatchRows)) {
-            $rows = [];
-            foreach ($swatchRows as $sr) {
-                $rows[] = ['option_id' => $keyToOptionId[$sr['key']], 'store_id' => $sr['store_id'], 'type' => $sr['type'], 'value' => $sr['value']];
+            if (!empty($labelRows)) {
+                $rows = [];
+                foreach ($labelRows as $lr) {
+                    $rows[] = ['option_id' => $keyToOptionId[$lr['key']], 'store_id' => $lr['store_id'], 'value' => $lr['value']];
+                }
+                $connection->insertOnDuplicate($valueTable, $rows, ['value']);
             }
-            $connection->insertOnDuplicate($swatchTable, $rows, ['type', 'value']);
+
+            if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
+                $connection->update(
+                    $this->resourceConnection->getTableName('eav_attribute'),
+                    ['default_value' => (string) $keyToOptionId[$defaultKey]],
+                    ['attribute_id = ?' => $attribute->getAttributeId()]
+                );
+            }
+
+            if (!empty($swatchRows)) {
+                $rows = [];
+                foreach ($swatchRows as $sr) {
+                    $rows[] = ['option_id' => $keyToOptionId[$sr['key']], 'store_id' => $sr['store_id'], 'type' => $sr['type'], 'value' => $sr['value']];
+                }
+                $connection->insertOnDuplicate($swatchTable, $rows, ['type', 'value']);
+            }
+
+            $connection->commit();
+        } catch (\Throwable $e) {
+            $connection->rollBack();
+            throw $e;
         }
     }
 }

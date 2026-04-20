@@ -25,10 +25,10 @@ class Preview extends AbstractAction implements HttpPostActionInterface
      * @param LayoutFactory $layoutFactory
      */
     public function __construct(
-        Context                              $context,
-        private readonly JsonFactory         $resultJsonFactory,
+        Context                                 $context,
+        private readonly JsonFactory            $resultJsonFactory,
         private readonly ImportServiceInterface $importService,
-        private readonly LayoutFactory       $layoutFactory
+        private readonly LayoutFactory          $layoutFactory
     ) {
         parent::__construct($context);
     }
@@ -60,40 +60,6 @@ class Preview extends AbstractAction implements HttpPostActionInterface
                 'message' => $e->getMessage(),
             ]);
         }
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
-    private function assertValidRequest(): void
-    {
-        $files = $this->getRequest()->getFiles()->toArray();
-
-        if (empty($files['import_file']['tmp_name'])) {
-            throw new Exception((string) __('Please upload a CSV file.'));
-        }
-        if (strtolower(pathinfo($files['import_file']['name'], PATHINFO_EXTENSION)) !== 'csv') {
-            throw new Exception((string) __('Only CSV files are allowed.'));
-        }
-        if (empty($this->getRequest()->getParam('attribute_code'))) {
-            throw new Exception((string) __('Please select an attribute.'));
-        }
-    }
-
-    /**
-     * @return string
-     * @throws Exception
-     */
-    private function getUploadedFilePath(): string
-    {
-        $files    = $this->getRequest()->getFiles()->toArray();
-        $filePath = $files['import_file']['tmp_name'] ?? '';
-
-        if (!is_readable($filePath)) {
-            throw new Exception((string) __('Cannot read the uploaded file.'));
-        }
-        return $filePath;
     }
 
     /**

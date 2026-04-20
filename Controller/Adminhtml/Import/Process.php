@@ -24,10 +24,10 @@ class Process extends AbstractAction implements HttpPostActionInterface
      * @param LoggerInterface $logger
      */
     public function __construct(
-        Context                              $context,
+        Context                                 $context,
         private readonly ImportServiceInterface $importService,
-        private readonly JsonFactory         $resultJsonFactory,
-        private readonly LoggerInterface     $logger
+        private readonly JsonFactory            $resultJsonFactory,
+        private readonly LoggerInterface        $logger
     ) {
         parent::__construct($context);
     }
@@ -54,7 +54,7 @@ class Process extends AbstractAction implements HttpPostActionInterface
                 'skipped'  => $importResult['skipped'],
             ]);
         } catch (Exception $e) {
-            $this->logger->error(sprintf('[%s] Controller error: %s', date('Y-m-d H:i:s'), $e->getMessage()));
+            $this->logger->error(sprintf('Controller error: %s', $e->getMessage()));
             return $result->setData([
                 'success'  => false,
                 'messages' => [(string) __('An unexpected error occurred. See attribute_import.log for details.')],
@@ -62,39 +62,5 @@ class Process extends AbstractAction implements HttpPostActionInterface
                 'skipped'  => 0,
             ]);
         }
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
-    private function assertValidRequest(): void
-    {
-        $files = $this->getRequest()->getFiles()->toArray();
-
-        if (empty($files['import_file']['tmp_name'])) {
-            throw new Exception((string) __('Please upload a CSV file.'));
-        }
-        if (strtolower(pathinfo($files['import_file']['name'], PATHINFO_EXTENSION)) !== 'csv') {
-            throw new Exception((string) __('Only CSV files are allowed.'));
-        }
-        if (empty($this->getRequest()->getParam('attribute_code'))) {
-            throw new Exception((string) __('Please select an attribute.'));
-        }
-    }
-
-    /**
-     * @return string
-     * @throws Exception
-     */
-    private function getUploadedFilePath(): string
-    {
-        $files    = $this->getRequest()->getFiles()->toArray();
-        $filePath = $files['import_file']['tmp_name'] ?? '';
-
-        if (!is_readable($filePath)) {
-            throw new Exception((string) __('Cannot read the uploaded file.'));
-        }
-        return $filePath;
     }
 }
