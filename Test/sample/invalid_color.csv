@@ -1,7 +1,7 @@
 attribute_code,store_view,value,hex_code,sort_order,is_default
-color,default,Red,#FF0000,abc,1
-color,fr,Rouge,#FF0000,1,1
-color,default,Blue,notahex,2,1
-color,fr,Bleu,#0000FF,2,0
-color,default,Red,#008000,3,0
-color,fr,Vert,#008000,3,0
+color,default,Coral,#FF6B6B,abc,1
+color,fr,Corail,#FF6B6B,1,1
+color,default,Teal,notahex,2,1
+color,fr,Sarcelle,#008080,2,0
+color,default,Coral,#FF6B6B,3,0
+color,fr,Corail,#FF6B6B,3,0

@@ -88,22 +88,28 @@ A secondary link to the import log is accessible from the same page.
 
 ## CSV Format
 
-### Plain `select` attribute (no swatch)
+All attributes use the same **6-column format** regardless of type:
 
 ```
-attribute_code,store_view,value,sort_order,is_default
-size,default,Small,1,1
-size,fr,Petite,1,1
-size,en,Small,1,1
-size,default,Medium,2,0
-size,fr,Moyenne,2,0
-size,en,Medium,2,0
+attribute_code,store_view,value,hex_code,sort_order,is_default
 ```
 
-### Visual swatch attribute (hex colour or image URL)
+### Plain `select` attribute (no swatch) — leave `hex_code` empty
 
 ```
-attribute_code,store_view,value,swatch,sort_order,is_default
+attribute_code,store_view,value,hex_code,sort_order,is_default
+size,default,Small,,1,1
+size,fr,Petite,,1,1
+size,en,Small,,1,1
+size,default,Medium,,2,0
+size,fr,Moyenne,,2,0
+size,en,Medium,,2,0
+```
+
+### Visual swatch attribute — provide `#RRGGBB` in `hex_code`
+
+```
+attribute_code,store_view,value,hex_code,sort_order,is_default
 color,default,Red,#FF0000,1,1
 color,fr,Rouge,#FF0000,1,1
 color,en,Red,#FF0000,1,1
@@ -111,13 +117,6 @@ color,default,Blue,#0000FF,2,0
 color,fr,Bleu,#0000FF,2,0
 color,en,Blue,#0000FF,2,0
 ```
-
-> The `swatch` column also accepts the alias `hex_code` (as shown in the spec).  
-> For image swatches, provide an absolute or root-relative URL (e.g. `/media/swatch/red.jpg`).
-
-### Text swatch attribute
-
-Same 6-column layout as visual swatch. The `swatch` value is a styled label string.
 
 ---
 
@@ -128,7 +127,7 @@ Same 6-column layout as visual swatch. The `swatch` value is a styled label stri
 | `attribute_code` | Yes | Must match the attribute you selected in the form. Every row must have the same value. |
 | `store_view` | Yes | `default` or `admin` = global label (store\_id=0). Any other value must be a valid Magento store code (e.g. `fr`, `en`). |
 | `value` | Yes | The option label for this store view. |
-| `swatch` / `hex_code` | Yes (swatch attrs only) | Hex colour (`#RRGGBB`) or image URL. Ignored for text swatches (use the `value` column instead). |
+| `hex_code` | Yes (visual swatch only) | Hex colour (`#RRGGBB`). Leave empty for plain `select` and `multiselect` attributes. |
 | `sort_order` | Yes (admin row only) | Integer. Controls the display order of the option in dropdowns. |
 | `is_default` | Yes (admin row only) | `1` = this option is the default selected value. Only one option may have `is_default=1`. |
 
