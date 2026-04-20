@@ -41,6 +41,16 @@ class Form extends Container
             ]
         );
 
+        $this->buttonList->add(
+            'view-log-button',
+            [
+                'label' => __('View Log'),
+                'type'  => 'link',
+                'class' => 'action-default',
+                'url'   => $this->getUrl('attributeimport/import/log'),
+            ]
+        );
+
         $this->_objectId   = 'import_ids';
         $this->_blockGroup = 'Aichouchm_AttributeImport';
         $this->_controller = 'adminhtml_import';
