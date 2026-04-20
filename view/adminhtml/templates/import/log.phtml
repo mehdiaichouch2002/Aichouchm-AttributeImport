@@ -18,8 +18,8 @@ $lines = $block->getLogLines(300);
         </p>
     <?php else: ?>
         <p class="note"><?= $block->escapeHtml(__('Showing last %1 log entries, newest first.', count($lines))) ?></p>
-        <div style="font-family: monospace; font-size: 2rem; background: #1a1a1a; color: #d4d4d4;
-                    padding: 1.5rem; border-radius: 4px; max-height: 600px; overflow-y: auto; line-height: 1.6;">
+        <div style="font-family: monospace; font-size: 1.5rem; background: #1a1a1a; color: #d4d4d4;
+                    padding: 0.5rem; border-radius: 4px; max-height: 600px; overflow-y: auto; line-height: 1.6;">
             <?php foreach ($lines as $line): ?>
                 <?php
                 $trimmed = trim($line);
