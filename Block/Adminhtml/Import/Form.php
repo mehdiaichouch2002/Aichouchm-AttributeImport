@@ -44,10 +44,10 @@ class Form extends Container
         $this->buttonList->add(
             'view-log-button',
             [
-                'label' => __('View Log'),
-                'type'  => 'link',
-                'class' => 'action-default',
-                'url'   => $this->getUrl('attributeimport/import/log'),
+                'label'   => __('View Log'),
+                'type'    => 'button',
+                'class'   => 'action-default',
+                'onclick' => 'setLocation(\'' . $this->getUrl('attributeimport/import/log') . '\')',
             ]
         );
 
