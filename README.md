@@ -30,50 +30,11 @@ This module adds a dedicated page under **Stores → Attributes → Import Attri
 
 ## Installation
 
-### Via Composer (recommended)
-
-Ensure your Magento project's `composer.json` has:
-
-```json
-"minimum-stability": "dev",
-"prefer-stable": true
-```
-
-Then:
-
 ```bash
 composer require aichouchm/magento2-module-attribute-import
 bin/magento module:enable Aichouchm_AttributeImport
 bin/magento setup:upgrade
 bin/magento cache:flush
-```
-
-### Via Composer path repository (local development)
-
-Add to the root `composer.json` of your Magento project:
-
-```json
-"repositories": [
-    { "type": "path", "url": "../Aichouchm-AttributeImport" }
-]
-```
-
-Then:
-
-```bash
-composer require aichouchm/magento2-module-attribute-import
-bin/magento module:enable Aichouchm_AttributeImport
-bin/magento setup:upgrade
-bin/magento cache:flush
-```
-
-### If you use the Robo dev environment
-
-```bash
-robo composer require aichouchm/magento2-module-attribute-import
-robo magento module:enable Aichouchm_AttributeImport
-robo magento setup:upgrade
-robo magento cache:flush
 ```
 
 ---
@@ -158,17 +119,11 @@ The **Check Data** button validates the file before any data is written:
 
 | Rule | Severity |
 |---|---|
-| Column count must match expected layout | Error — blocks import |
-| Column names must match expected names | Error — blocks import |
-| `attribute_code` must match selected attribute on every row | Error — blocks import |
-| `store_view`, `value` must not be empty | Error — blocks import |
-| First row of each option group must be a `default`/`admin` store row | Error — blocks import |
 | `sort_order` must be a number | Error — blocks import |
 | `is_default` must be `0` or `1` | Error — blocks import |
 | Only one option may have `is_default=1` | Error — blocks import |
 | No duplicate values within the same `default`/`admin` store in the CSV | Error — blocks import |
-| No duplicate store codes within the same option group | Error — blocks import |
-| Non-existent store codes | Error — blocks import |
+| `hex_code` must be a valid `#RRGGBB` colour for visual swatch attributes | Error — blocks import |
 | Option value already exists in the database | Warning — logs and skips |
 
 ---
@@ -216,28 +171,13 @@ Validator              ← stateless, returns error list — no DB writes
 ImportService          ← groups rows by option, pre-loads existing options once
     │
     ▼
-OptionProcessor        ← bulk DB writes: insertMultiple for labels, insertOnDuplicate for swatches
+OptionProcessor        ← bulk DB writes: insertOnDuplicate for labels and swatches
     │
     ▼
 CacheManager           ← clears eav + full_page caches
     │
     ▼
 Logger                 ← writes to var/log/attribute_import.log
-```
-
----
-
-## Running Unit Tests
-
-Tests are written for PHPUnit 10 and require no Magento bootstrap — they use mocks only.
-
-```bash
-# From within the Magento project (where vendor/phpunit/phpunit is installed):
-docker compose exec maintenance bash -c \
-  "cd /var/www/html && vendor/bin/phpunit app/code/Aichouchm/AttributeImport/Test/Unit"
-
-# Or directly if phpunit is in PATH:
-phpunit --testdox Test/Unit
 ```
 
 ---

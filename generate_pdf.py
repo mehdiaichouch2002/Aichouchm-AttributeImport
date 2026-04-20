@@ -283,8 +283,8 @@ def build_body():
         |
         v
   [OptionProcessor]    writes to DB:
-                         INSERT INTO eav_attribute_option      (one per option)
-                         insertMultiple  eav_attribute_option_value   (all labels)
+                         INSERT INTO eav_attribute_option         (one per option)
+                         insertOnDuplicate eav_attribute_option_value  (all labels)
                          insertOnDuplicate eav_attribute_option_swatch (all swatches)
         |
         v
@@ -298,12 +298,12 @@ def build_body():
           "The attribute <b>color</b> is a visual swatch (hex) attribute."),
         code(
 """attribute_code,store_view,value,hex_code,sort_order,is_default
-color,default,Red,#FF0000,1,1      <- group 1: admin row (sort_order + is_default here)
-color,fr,Rouge,#FF0000,1,1         <- group 1: French translation
-color,en,Red,#FF0000,1,1           <- group 1: English translation
-color,default,Blue,#0000FF,2,0     <- group 2: admin row
-color,fr,Bleu,#0000FF,2,0          <- group 2: French translation
-color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
+color,default,Coral,#FF6B6B,1,1    <- group 1: admin row (sort_order + is_default here)
+color,fr,Corail,#FF6B6B,1,1        <- group 1: French translation
+color,en,Coral,#FF6B6B,1,1         <- group 1: English translation
+color,default,Teal,#008080,2,0     <- group 2: admin row
+color,fr,Sarcelle,#008080,2,0      <- group 2: French translation
+color,en,Teal,#008080,2,0          <- group 2: English translation"""),
         space(),
         h2("1.3  Folder Structure"),
         code(
@@ -343,7 +343,9 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 |   |            attributeimport_import_log.xml
 |   `-- templates/import/  form/before.phtml
 |                           preview.phtml  log.phtml
-`-- Test/Unit/  Csv/  Attribute/"""),
+`-- Test/sample/  valid_color.csv  invalid_color.csv
+                  duplicate_color.csv
+                  valid_material.csv  invalid_material.csv"""),
         PageBreak(),
     ]
 
@@ -988,18 +990,20 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
         code(
 """$validation = $this->importService->validate('/tmp/phpAb3x9', 'color');
 
-// What $validation contains for our running example (valid CSV):
+// What $validation contains for our running example (valid_color.csv):
 [
-    'is_valid' => true,
-    'errors'   => [],          // empty — no validation errors
-    'rows'     => [
+    'is_valid'    => true,
+    'errors'      => [],          // empty — no validation errors
+    'swatch_type' => 1,           // SWATCH_VISUAL — color is a visual swatch attribute
+    'rows'        => [
         ['attribute_code','store_view','value','hex_code','sort_order','is_default'],  // header
-        ['color','default','Red','#FF0000','1','1'],
-        ['color','fr','Rouge','#FF0000','1','1'],
-        ['color','en','Red','#FF0000','1','1'],
-        ['color','default','Blue','#0000FF','2','0'],
-        ['color','fr','Bleu','#0000FF','2','0'],
-        ['color','en','Blue','#0000FF','2','0'],
+        ['color','default','Coral','#FF6B6B','1','1'],
+        ['color','fr','Corail','#FF6B6B','1','1'],
+        ['color','en','Coral','#FF6B6B','1','1'],
+        ['color','default','Teal','#008080','2','0'],
+        ['color','fr','Sarcelle','#008080','2','0'],
+        ['color','en','Teal','#008080','2','0'],
+        // ... Indigo rows
     ],
 ]
 
@@ -1101,12 +1105,12 @@ color,en,Blue,#0000FF,2,0          <- group 2: English translation"""),
 """$reader->read('/tmp/upload.csv'):
 
 yield 0 => ['attribute_code','store_view','value','hex_code','sort_order','is_default']
-yield 1 => ['color','default','Red','#FF0000','1','1']
-yield 2 => ['color','fr','Rouge','#FF0000','1','1']
-yield 3 => ['color','en','Red','#FF0000','1','1']
-yield 4 => ['color','default','Blue','#0000FF','2','0']
-yield 5 => ['color','fr','Bleu','#0000FF','2','0']
-yield 6 => ['color','en','Blue','#0000FF','2','0']"""),
+yield 1 => ['color','default','Coral','#FF6B6B','1','1']
+yield 2 => ['color','fr','Corail','#FF6B6B','1','1']
+yield 3 => ['color','en','Coral','#FF6B6B','1','1']
+yield 4 => ['color','default','Teal','#008080','2','0']
+yield 5 => ['color','fr','Sarcelle','#008080','2','0']
+yield 6 => ['color','en','Teal','#008080','2','0']"""),
         PageBreak(),
 
         h2("Model/Csv/Validator.php"),
@@ -1182,8 +1186,8 @@ public function getSwatchType(string $attributeCode): int
 """// One format for all attribute types:
 // ['attribute_code','store_view','value','hex_code','sort_order','is_default']
 //
-// For visual swatch:  hex_code filled  → color,default,Red,#FF0000,1,1
-// For plain select:   hex_code empty   → material,default,Cotton,,1,1
+// For visual swatch:  hex_code filled  → color,default,Coral,#FF6B6B,1,1
+// For plain select:   hex_code empty   → material,default,Linen,,1,1
 
 public function validateHeaders(array $headerRow): array
 {
@@ -1218,34 +1222,35 @@ public function validateHeaders(array $headerRow): array
         space(),
         p("Step-by-step walk through the running example:"),
         code(
-"""Row 1: ['color','default','Red','#FF0000','1','1']
+"""// Input: data rows only (header already stripped by ImportService)
+Row 1: ['color','default','Coral','#FF6B6B','1','1']
   isAdmin=true  -> new group starts
-  $optionStores = []   (reset for this group)
-  'Red' not in $adminValues -> add it: $adminValues=['Red']
-  sort_order='1'  -> is_numeric OK
-  is_default='1'  -> valid, $defaultSelected=true
-  hex '#FF0000'   -> matches /^#[A-Fa-f0-9]{6}$/ OK
+  $optionStores = []   (reset for this new group)
+  'Coral' not in $adminValues -> add it: $adminValues=['Coral']
+  sort_order='1'  -> is_numeric(1) OK
+  is_default='1'  -> $defaultSelected=true
+  hex '#FF6B6B'   -> matches /^#[A-Fa-f0-9]{6}$/ OK
 
-Row 2: ['color','fr','Rouge','#FF0000','1','1']
-  isAdmin=false -> translation row
+Row 2: ['color','fr','Corail','#FF6B6B','1','1']
+  isAdmin=false -> translation row (fr store)
   'fr' is a valid Magento store code -> OK
   'fr' not in $optionStores -> add it: $optionStores=['fr']
 
-Row 3: ['color','en','Red','#FF0000','1','1']
-  isAdmin=false -> translation row
+Row 3: ['color','en','Coral','#FF6B6B','1','1']
+  isAdmin=false -> translation row (en store)
   'en' is a valid store code -> OK
   'en' not in $optionStores -> $optionStores=['fr','en']
 
-Row 4: ['color','default','Blue','#0000FF','2','0']
+Row 4: ['color','default','Teal','#008080','2','0']
   isAdmin=true  -> new group starts
-  $optionStores = []   (reset)
-  'Blue' not in $adminValues -> $adminValues=['Red','Blue']
-  is_default='0' -> $defaultSelected stays true, no conflict
+  $optionStores = []   (reset for this new group)
+  'Teal' not in $adminValues -> $adminValues=['Coral','Teal']
+  is_default='0' -> $defaultSelected still true from row 1, no conflict
 
-Result: [] (empty = valid)"""),
-        callout("good", "Adding a duplicate row ['color','default','Red','#FF0000','4','0'] "
-                "at the end would produce: \"Row 7: Duplicate option value Red within the CSV\". "
-                "The check is O(1) per row — in_array on an already-built array."),
+Result: [] — empty array means the file is valid, Import button enabled"""),
+        callout("good", "Adding a duplicate row ['color','default','Coral','#FF6B6B','4','0'] "
+                "at the end would produce: \"Row 7: Duplicate option value Coral within the CSV\". "
+                "The check is O(n) per row — in_array scans the already-built $adminValues array."),
         PageBreak(),
     ]
 
@@ -1340,13 +1345,13 @@ Result: [] (empty = valid)"""),
     ];
 }
 
-// Result for the running example:
+// Result for the running example (valid_color.csv with Coral + Teal):
 // [
-//   SWATCH_VISUAL,   // swatchType
+//   SWATCH_VISUAL,   // swatchType — color is a visual swatch attribute
 //   [
-//     ['attribute_code','store_view','value','hex_code','sort_order','is_default'], // row 0
-//     ['color','default','Red','#FF0000','1','1'],   // row 1
-//     ['color','fr','Rouge','#FF0000','1','1'],       // row 2
+//     ['attribute_code','store_view','value','hex_code','sort_order','is_default'], // row 0 (header)
+//     ['color','default','Coral','#FF6B6B','1','1'],   // row 1
+//     ['color','fr','Corail','#FF6B6B','1','1'],        // row 2
 //     ...
 //   ]
 // ]"""),
@@ -1373,8 +1378,8 @@ Result: [] (empty = valid)"""),
         $swatchType      = $validation['swatch_type'];
         $existingOptions = $this->loadExistingOptions((int) $attribute->getAttributeId());
 
-        // 3. Group already-loaded rows by option (no file re-read)
-        $groups = $this->groupRowsByOption($validation['rows'], $swatchType);
+        // 3. Group already-loaded rows by option (no file re-read — rows were loaded in validate())
+        $groups = $this->groupRowsByOption($validation['rows']);
 
         // 4. Write to DB
         $result = $this->optionProcessor->processGroups(
@@ -1425,55 +1430,68 @@ Result: [] (empty = valid)"""),
     return $result;
 }
 
-// Returns: ['Red' => 45, 'Blue' => 46]
-// if Red and Blue already exist in the DB."""),
+// If Coral and Teal already exist in the DB, returns:
+// ['Coral' => 45, 'Teal' => 46]
+// Used as an O(1) hash-map: array_key_exists('Coral', $existing) is true -> skip."""),
         space(),
-        h3("groupRowsByOption(string $filePath, int $swatchType): array"),
-        p("Second streaming pass through the file. Groups rows into logical option objects. "
-          "A new group starts every time a default/admin row appears."),
+        h3("groupRowsByOption(array $rows): array"),
+        p("Receives the already-loaded rows array (from <b>readAllRows</b>) and groups them "
+          "into logical option objects. A new group starts every time a default/admin row "
+          "appears. The header row (index 0) is skipped with <b>array_slice($rows, 1)</b>. "
+          "The result is a flat list of groups — each group has one 'admin' key (the global "
+          "row with sort_order and is_default) and a 'stores' key (translation rows)."),
         code(
-"""private function groupRowsByOption(string $filePath, int $swatchType): array
+"""private function groupRowsByOption(array $rows): array
 {
     $groups       = [];
     $currentGroup = null;
 
-    foreach ($this->streamingReader->read($filePath) as $lineNumber => $row) {
-        if ($lineNumber === 0) continue;  // skip header
-
-        $storeCode = strtolower(trim($row[1] ?? ''));
+    foreach (array_slice($rows, 1) as $row) {   // skip header row at index 0
+        $storeCode = strtolower(trim($row[CsvValidator::COL_STORE_VIEW] ?? ''));
         $isAdmin   = in_array($storeCode, ['admin', 'default'], true);
 
         if ($isAdmin) {
             if ($currentGroup !== null) {
-                $groups[] = $currentGroup;  // save the completed group
+                $groups[] = $currentGroup;  // save the just-completed group
             }
             $currentGroup = ['admin' => $row, 'stores' => []];
         } elseif ($currentGroup !== null) {
-            $currentGroup['stores'][] = $row;
+            $currentGroup['stores'][] = $row;   // add translation row to current group
         }
     }
 
     if ($currentGroup !== null) {
-        $groups[] = $currentGroup;  // save the last group
+        $groups[] = $currentGroup;  // save the last group (no next admin row follows it)
     }
 
     return $groups;
 }
 
-// Running example result:
+// Running example — applying this to the 6-row CSV (2 options, 2 stores each):
+//
+// Input $rows (after array_slice, no header):
+//   row 0: ['color','default','Coral','#FF6B6B','1','1']  <- isAdmin=true  -> starts group 1
+//   row 1: ['color','fr','Corail','#FF6B6B','1','1']      <- isAdmin=false -> goes to group 1 stores
+//   row 2: ['color','en','Coral','#FF6B6B','1','1']       <- isAdmin=false -> goes to group 1 stores
+//   row 3: ['color','default','Teal','#008080','2','0']   <- isAdmin=true  -> saves group 1, starts group 2
+//   row 4: ['color','fr','Sarcelle','#008080','2','0']    <- isAdmin=false -> goes to group 2 stores
+//   row 5: ['color','en','Teal','#008080','2','0']        <- isAdmin=false -> goes to group 2 stores
+//   (loop ends)                                           -> saves group 2
+//
+// Output $groups:
 // [
 //   [
-//     'admin'  => ['color','default','Red','#FF0000','1','1'],
+//     'admin'  => ['color','default','Coral','#FF6B6B','1','1'],
 //     'stores' => [
-//       ['color','fr','Rouge','#FF0000','1','1'],
-//       ['color','en','Red','#FF0000','1','1'],
+//       ['color','fr','Corail','#FF6B6B','1','1'],
+//       ['color','en','Coral','#FF6B6B','1','1'],
 //     ]
 //   ],
 //   [
-//     'admin'  => ['color','default','Blue','#0000FF','2','0'],
+//     'admin'  => ['color','default','Teal','#008080','2','0'],
 //     'stores' => [
-//       ['color','fr','Bleu','#0000FF','2','0'],
-//       ['color','en','Blue','#0000FF','2','0'],
+//       ['color','fr','Sarcelle','#008080','2','0'],
+//       ['color','en','Teal','#008080','2','0'],
 //     ]
 //   ],
 // ]"""),
@@ -1542,7 +1560,7 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
         code(
 """public function processGroups(
     array $groups,
-    array $existingOptions,  // ['Red' => 45, 'Blue' => 46] from loadExistingOptions()
+    array $existingOptions,  // e.g. [] if DB is empty, or ['Coral' => 45] if Coral already exists
     int $swatchType,
     AttributeInterface $attribute
 ): array {
@@ -1613,9 +1631,7 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
 ): void {
     $connection = $this->resourceConnection->getConnection();
 
-    // All writes wrapped in a transaction — if any query fails, nothing is committed.
-    // Without this, a crash after options are inserted but before labels are written
-    // would leave orphan rows in eav_attribute_option with no labels.
+    // All writes wrapped in a transaction — if any query fails, everything rolls back cleanly.
     $connection->beginTransaction();
     try {
         // 1. One INSERT per option — required to capture each lastInsertId
@@ -1627,7 +1643,7 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
             $keyToOptionId[$key] = (int) $connection->lastInsertId();
         }
 
-        // 2. ALL labels in ONE query
+        // 2. ALL labels in ONE batch query.
         $labelInserts = [];
         foreach ($labelRows as $lr) {
             $labelInserts[] = [
@@ -1636,7 +1652,7 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
                 'value'     => $lr['value'],
             ];
         }
-        $connection->insertMultiple('eav_attribute_option_value', $labelInserts);
+        $connection->insertOnDuplicate('eav_attribute_option_value', $labelInserts, ['value']);
 
         // 3. Set is_default on the attribute record if any option had is_default=1
         if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
@@ -1847,7 +1863,7 @@ getStoreId('en')      -> 3   // StoreManager lookup — English store view
         code(
 """// Monolog line format:
 // [2026-04-15 14:32:01] AttributeImport.INFO: Import started — attribute: color [] []
-// [2026-04-15 14:32:01] AttributeImport.WARNING: Skipped: "Red" already exists. [] []
+// [2026-04-15 14:32:01] AttributeImport.WARNING: Skipped: "Coral" already exists. [] []
 // [2026-04-15 14:32:01] AttributeImport.ERROR: Validation error: Row 2... [] []
 
 // Colour detection:
@@ -1937,10 +1953,10 @@ if (stripos($trimmed, '.INFO')    !== false) $colour = '#87d7a0';  // green"""),
         simple_table(
             ["File", "Attribute", "Purpose"],
             [
-                ["valid_color.csv",    "color (visual swatch)", "3 options: Red, Blue, Green — fr + en translations"],
+                ["valid_color.csv",    "color (visual swatch)", "3 options: Coral, Teal, Indigo — fr + en translations"],
                 ["invalid_color.csv",  "color (visual swatch)", "4 deliberate errors — validation smoke test"],
-                ["duplicate_color.csv","color (visual swatch)", "Red + Blue already in DB + Yellow new — duplicate skip test"],
-                ["valid_material.csv", "material (plain select)","2 options: Cotton, Polyester — hex_code empty"],
+                ["duplicate_color.csv","color (visual swatch)", "Coral + Teal already in DB from Test 4, Navy is new — duplicate skip test"],
+                ["valid_material.csv", "material (plain select)","2 options: Linen, Wool — hex_code empty throughout"],
                 ["invalid_material.csv","material (plain select)","3 deliberate errors — validation for non-swatch attribute"],
             ],
             col_widths=[5*cm, 4.5*cm, 7.5*cm]
@@ -1974,19 +1990,19 @@ bin/magento cache:flush"""),
         p("Select <b>color</b>. Upload <b>invalid_color.csv</b>. Click <b>Check Data</b>."),
         code(
 """attribute_code,store_view,value,hex_code,sort_order,is_default
-color,default,Red,#FF0000,abc,1      ← Row 2: sort_order not numeric
-color,fr,Rouge,#FF0000,1,1
-color,default,Blue,notahex,2,1       ← Row 4: bad hex + is_default=1 duplicate
-color,fr,Bleu,#0000FF,2,0
-color,default,Red,#008000,3,0        ← Row 6: "Red" already seen in row 2
-color,fr,Vert,#008000,3,0"""),
+color,default,Coral,#FF6B6B,abc,1    ← Row 2: sort_order not numeric
+color,fr,Corail,#FF6B6B,1,1
+color,default,Teal,notahex,2,1       ← Row 4: bad hex + is_default=1 duplicate
+color,fr,Sarcelle,#008080,2,0
+color,default,Coral,#FF6B6B,3,0      ← Row 6: "Coral" duplicate (same as row 2)
+color,fr,Corail,#FF6B6B,3,0"""),
         simple_table(
             ["Row", "Expected error"],
             [
                 ["2", "sort_order must be a number, got \"abc\""],
                 ["4", "is_default=1 is already set for another option"],
                 ["4", "hex_code \"notahex\" is not a valid hex colour (expected #RRGGBB)"],
-                ["6", "Duplicate option value \"Red\" within the CSV (admin store)"],
+                ["6", "Duplicate option value \"Coral\" within the CSV (admin store)"],
             ],
             col_widths=[2*cm, 15*cm]
         ),
@@ -1997,21 +2013,21 @@ color,fr,Vert,#008000,3,0"""),
         p("Select <b>color</b>. Upload <b>valid_color.csv</b>. Click <b>Check Data</b>."),
         code(
 """attribute_code,store_view,value,hex_code,sort_order,is_default
-color,default,Red,#FF0000,1,1
-color,fr,Rouge,#FF0000,1,1
-color,en,Red,#FF0000,1,1
-color,default,Blue,#0000FF,2,0
-color,fr,Bleu,#0000FF,2,0
-color,en,Blue,#0000FF,2,0
-color,default,Green,#008000,3,0
-color,fr,Vert,#008000,3,0
-color,en,Green,#008000,3,0"""),
+color,default,Coral,#FF6B6B,1,1
+color,fr,Corail,#FF6B6B,1,1
+color,en,Coral,#FF6B6B,1,1
+color,default,Teal,#008080,2,0
+color,fr,Sarcelle,#008080,2,0
+color,en,Teal,#008080,2,0
+color,default,Indigo,#4B0082,3,0
+color,fr,Indigo,#4B0082,3,0
+color,en,Indigo,#4B0082,3,0"""),
         simple_table(
             ["Step", "Expected"],
             [
                 ["Check Data", "Preview shows all 9 rows. 0 errors. Import button enabled."],
                 ["Import",     "\"Import complete. Imported: 3, Skipped (already exist): 0\""],
-                ["Verify",     "Stores → Attributes → Product → color → Manage Options: Red, Blue, Green with fr/en labels"],
+                ["Verify",     "Stores → Attributes → Product → color → Manage Options: Coral, Teal, Indigo with fr/en labels and hex swatches"],
             ],
             col_widths=[3*cm, 14*cm]
         ),
@@ -2021,21 +2037,21 @@ color,en,Green,#008000,3,0"""),
         p("Run AFTER Test 4. Select <b>color</b>. Upload <b>duplicate_color.csv</b>."),
         code(
 """attribute_code,store_view,value,hex_code,sort_order,is_default
-color,default,Red,#FF0000,1,1        ← already in DB from Test 4
-color,fr,Rouge,#FF0000,1,1
-color,en,Red,#FF0000,1,1
-color,default,Blue,#0000FF,2,0       ← already in DB from Test 4
-color,fr,Bleu,#0000FF,2,0
-color,en,Blue,#0000FF,2,0
-color,default,Yellow,#FFFF00,4,0     ← new option
-color,fr,Jaune,#FFFF00,4,0
-color,en,Yellow,#FFFF00,4,0"""),
+color,default,Coral,#FF6B6B,1,1      ← already in DB from Test 4
+color,fr,Corail,#FF6B6B,1,1
+color,en,Coral,#FF6B6B,1,1
+color,default,Teal,#008080,2,0       ← already in DB from Test 4
+color,fr,Sarcelle,#008080,2,0
+color,en,Teal,#008080,2,0
+color,default,Navy,#001F5B,5,0       ← new option (not in DB yet)
+color,fr,Marine,#001F5B,5,0
+color,en,Navy,#001F5B,5,0"""),
         simple_table(
             ["Step", "Expected"],
             [
                 ["Check Data", "0 validation errors — duplicates are a DB-level check, not a CSV check."],
-                ["Import",     "\"Imported: 1, Skipped (already exist): 2\" — only Yellow created."],
-                ["Verify",     "color attribute now has Red, Blue, Green (from Test 4) + Yellow."],
+                ["Import",     "\"Imported: 1, Skipped (already exist): 2\" — only Navy created."],
+                ["Verify",     "color attribute now has Coral, Teal, Indigo (from Test 4) + Navy."],
             ],
             col_widths=[3*cm, 14*cm]
         ),
@@ -2046,18 +2062,18 @@ color,en,Yellow,#FFFF00,4,0"""),
         p("Select <b>material</b>. Upload <b>invalid_material.csv</b>. Click <b>Check Data</b>."),
         code(
 """attribute_code,store_view,value,hex_code,sort_order,is_default
-material,default,Cotton,,abc,1       ← Row 2: sort_order not numeric
-material,fr,Coton,,1,1
-material,default,Polyester,,2,2      ← Row 4: is_default must be 0 or 1
-material,fr,Polyester,,2,0
-material,default,Cotton,,3,0         ← Row 6: "Cotton" duplicate
+material,default,Linen,,abc,1        ← Row 2: sort_order not numeric
+material,fr,Lin,,1,1
+material,default,Wool,,2,2           ← Row 4: is_default must be 0 or 1, got "2"
+material,fr,Laine,,2,0
+material,default,Linen,,3,0          ← Row 6: "Linen" duplicate
 material,fr,Lin,,3,0"""),
         simple_table(
             ["Row", "Expected error"],
             [
                 ["2", "sort_order must be a number, got \"abc\""],
                 ["4", "is_default must be 0 or 1, got \"2\""],
-                ["6", "Duplicate option value \"Cotton\" within the CSV (admin store)"],
+                ["6", "Duplicate option value \"Linen\" within the CSV (admin store)"],
             ],
             col_widths=[2*cm, 15*cm]
         ),
@@ -2069,18 +2085,18 @@ material,fr,Lin,,3,0"""),
           "hex_code column is empty — module must not error."),
         code(
 """attribute_code,store_view,value,hex_code,sort_order,is_default
-material,default,Cotton,,1,1
-material,fr,Coton,,1,1
-material,en,Cotton,,1,1
-material,default,Polyester,,2,0
-material,fr,Polyester,,2,0
-material,en,Polyester,,2,0"""),
+material,default,Linen,,1,1
+material,fr,Lin,,1,1
+material,en,Linen,,1,1
+material,default,Wool,,2,0
+material,fr,Laine,,2,0
+material,en,Wool,,2,0"""),
         simple_table(
             ["Step", "Expected"],
             [
                 ["Check Data", "0 errors. Empty hex_code cells ignored — material is not a visual swatch."],
                 ["Import",     "\"Imported: 2, Skipped (already exist): 0\""],
-                ["Verify",     "material attribute has Cotton + Polyester with fr/en labels."],
+                ["Verify",     "material attribute has Linen + Wool with fr/en labels."],
             ],
             col_widths=[3*cm, 14*cm]
         ),
@@ -2092,7 +2108,7 @@ material,en,Polyester,,2,0"""),
             ["What to verify", "Expected"],
             [
                 ["INFO entries",    "\"Import started\" + \"Import complete\" for every import run"],
-                ["WARNING entries", "\"Skipped: Red already exists\" and \"Skipped: Blue already exists\" from Test 5"],
+                ["WARNING entries", "\"Skipped: Coral already exists\" and \"Skipped: Teal already exists\" from Test 5"],
                 ["ERROR entries",   "Validation error messages from Tests 3 and 6"],
                 ["Colour coding",   "INFO=green, WARNING=amber, ERROR=red"],
                 ["Timestamps",      "Every line has date + time prefix"],

@@ -97,6 +97,7 @@ class OptionProcessor
      * @param string|null $defaultKey
      * @param AttributeInterface $attribute
      * @return void
+     * @throws Throwable
      */
     private function bulkSave(
         array $newOptions,
