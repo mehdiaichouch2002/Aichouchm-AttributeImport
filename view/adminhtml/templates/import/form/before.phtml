@@ -18,6 +18,18 @@ $serverError = $block->escapeJs(__('Server error. Please try again.'));
 require(['jquery'], function ($) {
     'use strict';
 
+    function esc(str) {
+        return $('<div>').text(String(str)).html();
+    }
+
+    function formatMessages(messages, skipped) {
+        var parts = Array.isArray(messages) ? messages.map(esc) : [esc(messages)];
+        if (skipped > 0) {
+            parts.push('<em>' + esc(skipped + ' option(s) skipped (already exist). See log for details.') + '</em>');
+        }
+        return parts.join('<br>');
+    }
+
     window.attributeImport = {
         // ── Check Data ──────────────────────────────────────────────────────
         checkData: function () {
@@ -33,7 +45,7 @@ require(['jquery'], function ($) {
                 dataType:     'json',
                 success: function (response) {
                     if (!response.success) {
-                        attributeImport.showMessage(response.message || '$serverError', 'error');
+                        attributeImport.showMessage(esc(response.message || '$serverError'), 'error');
                         return;
                     }
                     $('#preview-container').html(response.data);
@@ -43,7 +55,7 @@ require(['jquery'], function ($) {
                         attributeImport.hideMessage();
                         attributeImport.enableImport();
                     } else {
-                        attributeImport.showMessage('Validation failed. Please fix the errors shown below.', 'error');
+                        attributeImport.showMessage(esc('Validation failed. Please fix the errors shown below.'), 'error');
                         attributeImport.resetButtons();
                     }
                 },
@@ -69,14 +81,9 @@ require(['jquery'], function ($) {
                     attributeImport.resetAfterSubmit();
 
                     if (response.success) {
-                        var msg = Array.isArray(response.messages) ? response.messages.join('<br>') : response.messages;
-                        if (response.skipped > 0) {
-                            msg += '<br><em>' + response.skipped + ' option(s) skipped (already exist). See log for details.</em>';
-                        }
-                        attributeImport.showMessage(msg, 'success');
+                        attributeImport.showMessage(formatMessages(response.messages, response.skipped || 0), 'success');
                     } else {
-                        var errors = Array.isArray(response.messages) ? response.messages.join('<br>') : response.messages;
-                        attributeImport.showMessage(errors, 'error');
+                        attributeImport.showMessage(formatMessages(response.messages, 0), 'error');
                     }
                 },
                 error: function () {
@@ -112,11 +119,11 @@ require(['jquery'], function ($) {
             $('#check-data-button').removeClass('disabled');
         },
 
-        showMessage: function (text, type) {
+        showMessage: function (safeHtml, type) {
             $('#import-notification')
                 .removeClass('hidden message-error message-success')
                 .addClass('message ' + (type === 'success' ? 'message-success' : 'message-error'))
-                .html('<div>' + text + '</div>');
+                .html('<div>' + safeHtml + '</div>');
         },
 
         hideMessage: function () {

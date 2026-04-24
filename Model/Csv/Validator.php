@@ -103,6 +103,7 @@ class Validator
         $adminValues     = [];
         $optionStores    = [];
         $defaultSelected = false;
+        $hasAdminRow     = false;
 
         foreach ($rows as $index => $row) {
             $rowNum    = $index + 2;
@@ -128,6 +129,7 @@ class Validator
             }
 
             if ($isAdmin) {
+                $hasAdminRow     = true;
                 $optionStores    = [];
                 $value           = $row[self::COL_VALUE] ?? '';
 
@@ -168,6 +170,11 @@ class Validator
                     }
                 }
             } else {
+                if (!$hasAdminRow) {
+                    $errors[] = (string) __('Row %1: store view row "%2" appears before any admin (default) row.',
+                        $rowNum, $storeCode);
+                }
+
                 if ($storeCode !== '' && !$this->storeResolver->isValidStoreCode($storeCode)) {
                     $errors[] = (string) __('Row %1: Store view "%2" does not exist in Magento.', $rowNum, $storeCode);
                 }
