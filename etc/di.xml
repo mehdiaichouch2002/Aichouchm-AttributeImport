@@ -11,8 +11,12 @@
         </arguments>
     </virtualType>
 
+    <!-- Based on Monolog\Logger, not Magento\Framework\Logger\Monolog: a virtual type
+         inherits the DI arguments of its parent type, and Magento's logger is
+         configured with the system/debug/syslog handlers. Extending it would
+         write every entry to system.log and debug.log as well. -->
     <virtualType name="Aichouchm\AttributeImport\Logger\Logger"
-                 type="Magento\Framework\Logger\Monolog">
+                 type="Monolog\Logger">
         <arguments>
             <argument name="name" xsi:type="string">AttributeImport</argument>
             <argument name="handlers" xsi:type="array">

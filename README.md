@@ -31,11 +31,16 @@ This module adds a dedicated page under **Stores → Attributes → Import Attri
 ## Installation
 
 ```bash
-composer require aichouchm/magento2-module-attribute-import
+composer require aichouchm/magento2-module-attribute-import:^1.0
 bin/magento module:enable Aichouchm_AttributeImport
 bin/magento setup:upgrade
 bin/magento cache:flush
 ```
+
+In production mode, also run `bin/magento setup:di:compile` and `bin/magento setup:static-content:deploy`.
+
+> To track the latest unreleased code instead of a tagged release, require
+> `aichouchm/magento2-module-attribute-import:dev-main`.
 
 ---
 
@@ -138,7 +143,8 @@ Skipped values appear in the import result message and in the log file.
 
 ## Logging
 
-Every import action is logged to:
+Every import action is logged to its own file, and only there (it is not
+duplicated into `system.log` or `debug.log`):
 
 ```
 var/log/attribute_import.log
@@ -212,7 +218,7 @@ System attributes (`is_user_defined = false`) are excluded from the attribute se
 
 ## Compatibility
 
-- Tested with Magento 2.4.6 and 2.4.7
+- Tested with Magento 2.4.6, 2.4.7 and 2.4.9 (PHP 8.5, MariaDB 12.3, OpenSearch 3, Valkey 9)
 - Compatible with Varnish full-page caching (module clears `eav` and `full_page` cache tags after import)
 - Compatible with Redis page cache
 
