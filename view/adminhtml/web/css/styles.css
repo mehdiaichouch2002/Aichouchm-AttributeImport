@@ -13,3 +13,37 @@
 #preview-section .admin__data-grid-outer-wrap {
     overflow-x: auto;
 }
+
+.attribute-import-log-actions {
+    margin-bottom: 1rem;
+}
+
+.attribute-import-log-lines {
+    background: #1a1a1a;
+    border-radius: 4px;
+    color: #d4d4d4;
+    font-family: monospace;
+    font-size: 1.5rem;
+    line-height: 1.6;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: .5rem;
+}
+
+.attribute-import-log-lines > div {
+    border-bottom: 1px solid #2d2d2d;
+    padding: 2px 0;
+    word-break: break-word;
+}
+
+.attribute-import-log-lines .log-line-error {
+    color: #f88585;
+}
+
+.attribute-import-log-lines .log-line-warning {
+    color: #ffd580;
+}
+
+.attribute-import-log-lines .log-line-info {
+    color: #87d7a0;
+}

@@ -10,15 +10,6 @@
             <block class="Aichouchm\AttributeImport\Block\Adminhtml\Import\Form"
                    name="attributeimport.form"/>
 
-            <block class="Aichouchm\AttributeImport\Block\Adminhtml\Import\Preview"
-                   name="attributeimport.preview"
-                   template="Aichouchm_AttributeImport::import/preview.phtml">
-                <arguments>
-                    <argument name="rows"   xsi:type="array"/>
-                    <argument name="errors" xsi:type="array"/>
-                </arguments>
-            </block>
-
             <block class="Aichouchm\AttributeImport\Block\Adminhtml\Import\Form\Before"
                    name="attributeimport.before"
                    template="Aichouchm_AttributeImport::import/form/before.phtml"/>

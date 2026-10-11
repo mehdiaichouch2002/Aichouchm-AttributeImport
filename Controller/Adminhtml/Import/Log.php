@@ -1,31 +1,36 @@
 <?php
+/**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ */
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Controller\Adminhtml\Import;
 
 use Aichouchm\AttributeImport\Controller\Adminhtml\AbstractAction;
 use Magento\Backend\App\Action\Context;
+use Magento\Framework\App\Action\HttpGetActionInterface;
 use Magento\Framework\View\Result\Page;
 use Magento\Framework\View\Result\PageFactory;
 
 /**
- * Controller Class Log
+ * Import log viewer page.
  */
-class Log extends AbstractAction
+class Log extends AbstractAction implements HttpGetActionInterface
 {
     /**
      * @param Context $context
      * @param PageFactory $resultPageFactory
      */
     public function __construct(
-        Context                      $context,
+        Context $context,
         private readonly PageFactory $resultPageFactory
     ) {
         parent::__construct($context);
     }
 
     /**
-     * @return Page
+     * @inheritdoc
      */
     public function execute(): Page
     {

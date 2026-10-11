@@ -1,19 +1,25 @@
 <?php
+/**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ */
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model\Import\Source;
 
+use Aichouchm\AttributeImport\Model\Attribute\AttributeGuard;
+use Magento\Catalog\Model\Product;
 use Magento\Eav\Api\AttributeRepositoryInterface;
 use Magento\Framework\Api\SearchCriteriaBuilder;
-use Magento\Framework\Option\ArrayInterface;
+use Magento\Framework\Data\OptionSourceInterface;
 
 /**
- * Class Attributes
+ * Attribute selector options: user-defined select/multiselect product attributes.
  */
-class Attributes implements ArrayInterface
+class Attributes implements OptionSourceInterface
 {
     /**
-     * @var array|null
+     * @var array<int,array{value:string,label:mixed}>|null
      */
     private ?array $options = null;
 
@@ -23,11 +29,14 @@ class Attributes implements ArrayInterface
      */
     public function __construct(
         private readonly AttributeRepositoryInterface $attributeRepository,
-        private readonly SearchCriteriaBuilder        $searchCriteriaBuilder
-    ) {}
+        private readonly SearchCriteriaBuilder $searchCriteriaBuilder
+    ) {
+    }
 
     /**
-     * {@inheritdoc}
+     * Build the option list once per request.
+     *
+     * @return array<int,array{value:string,label:mixed}>
      */
     public function toOptionArray(): array
     {
@@ -38,13 +47,11 @@ class Attributes implements ArrayInterface
         $this->options = [['value' => '', 'label' => __('-- Please Select --')]];
 
         $searchCriteria = $this->searchCriteriaBuilder
-            ->addFilter('frontend_input', ['select', 'multiselect'], 'in')
+            ->addFilter('frontend_input', AttributeGuard::ALLOWED_FRONTEND_INPUTS, 'in')
             ->addFilter('is_user_defined', 1)
             ->create();
 
-        $items = $this->attributeRepository
-            ->getList('catalog_product', $searchCriteria)
-            ->getItems();
+        $items = $this->attributeRepository->getList(Product::ENTITY, $searchCriteria)->getItems();
 
         foreach ($items as $attribute) {
             $this->options[] = [

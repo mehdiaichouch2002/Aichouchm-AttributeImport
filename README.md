@@ -31,7 +31,7 @@ This module adds a dedicated page under **Stores → Attributes → Import Attri
 ## Installation
 
 ```bash
-composer require aichouchm/magento2-module-attribute-import:^1.0
+composer require aichouchm/magento2-module-attribute-import:^1.1
 bin/magento module:enable Aichouchm_AttributeImport
 bin/magento setup:upgrade
 bin/magento cache:flush
@@ -124,18 +124,26 @@ The **Check Data** button validates the file before any data is written:
 
 | Rule | Severity |
 |---|---|
-| `sort_order` must be a number | Error — blocks import |
+| The attribute must exist and be a user-defined `select`/`multiselect` attribute (checked on the server, not only in the dropdown) | Error — blocks import |
+| Every row must have exactly 6 columns | Error — blocks import |
+| `sort_order` must be a whole number ≥ 0 | Error — blocks import |
 | `is_default` must be `0` or `1` | Error — blocks import |
 | Only one option may have `is_default=1` | Error — blocks import |
-| No duplicate values within the same `default`/`admin` store in the CSV | Error — blocks import |
+| No duplicate values (case-insensitive) within the `default`/`admin` rows of the CSV | Error — blocks import |
 | `hex_code` must be a valid `#RRGGBB` colour for visual swatch attributes | Error — blocks import |
-| Option value already exists in the database | Warning — logs and skips |
+| `value` must be at most 255 characters, with no HTML tags and no line breaks or control characters | Error — blocks import |
+| Store view codes must exist; each store may appear once per option | Error — blocks import |
+| Option value already exists in the database (case-insensitive) | Warning — logs and skips |
+
+Files saved by Excel with a UTF-8 BOM are accepted.
 
 ---
 
 ## Duplicate Handling
 
 If an option value already exists in the database for the selected attribute, the module **skips it silently** (logs a warning) instead of overwriting it. This is intentional — it protects options that have been manually adjusted by an admin.
+
+The comparison is case-insensitive, matching the database collation: importing `red` when `Red` exists is a skip, not a new near-duplicate option.
 
 Skipped values appear in the import result message and in the log file.
 
@@ -168,7 +176,13 @@ Log levels used:
 CSV upload
     │
     ▼
-StreamingReader        ← fgetcsv generator — O(1) memory per row
+CsvUploadValidator     ← upload status, .csv extension, 10 MB limit, content type
+    │
+    ▼
+AttributeGuard         ← attribute exists and is user-defined select/multiselect
+    │
+    ▼
+StreamingReader        ← Magento file driver + fgetcsv generator, strips BOM, row limit
     │
     ▼
 Validator              ← stateless, returns error list — no DB writes
@@ -177,13 +191,45 @@ Validator              ← stateless, returns error list — no DB writes
 ImportService          ← groups rows by option, pre-loads existing options once
     │
     ▼
-OptionProcessor        ← bulk DB writes: insertOnDuplicate for labels and swatches
+OptionProcessor        ← one transaction: options, labels, text/visual swatches
     │
     ▼
-CacheManager           ← clears eav + full_page caches
+CacheManager           ← clears eav + full_page + block_html caches
     │
     ▼
 Logger                 ← writes to var/log/attribute_import.log
+```
+
+The admin UI is a RequireJS component (`view/adminhtml/web/js/attribute-import.js`)
+initialised with `x-magento-init`; buttons and fields carry no inline event handlers.
+
+---
+
+## Security
+
+- **ACL** on every controller (`Aichouchm_AttributeImport::import_attributes`); Preview and
+  Process are POST-only (form key validated by Magento), the page and log viewer GET-only.
+- **Server-side attribute allow-list**: options can only be imported into user-defined
+  `select`/`multiselect` attributes, whatever `attribute_code` is posted.
+- **Input validation**: values with HTML tags or control characters are rejected, which also
+  prevents forged entries in the log file.
+- **No information leaks**: only user-facing validation messages are returned; unexpected
+  errors are logged in full and replaced by a generic message.
+- **Output escaping** with `$escaper` in all templates; client-side messages are escaped too.
+- **Bounded resources**: 10 MB upload limit, 10,000 data rows, and the log viewer only reads
+  the last 256 KB of the log.
+- **No double imports**: buttons are disabled while a request is running.
+
+---
+
+## Running the Tests
+
+Unit tests use Magento's unit test bootstrap. From the Magento root:
+
+```bash
+cd dev/tests/unit
+../../../vendor/bin/phpunit --bootstrap framework/bootstrap.php \
+    ../../../vendor/aichouchm/magento2-module-attribute-import/Test/Unit
 ```
 
 ---
@@ -208,11 +254,11 @@ Assign this resource to any admin role that needs access to the import page.
 |---|---|
 | `select` | Yes |
 | `multiselect` | Yes |
-| `swatch_visual` | Yes (hex + image URL) |
-| `swatch_text` | Yes |
+| `swatch_visual` | Yes — `#RRGGBB` colour in `hex_code` |
+| `swatch_text` | Yes — each label is also stored as the swatch text for its store view |
 | `boolean`, `date`, `text`, etc. | No — these have no options |
 
-System attributes (`is_user_defined = false`) are excluded from the attribute selector to prevent accidental modification of core Magento configuration.
+System attributes (`is_user_defined = false`) are excluded from the attribute selector and rejected by the server, to prevent modification of core Magento configuration.
 
 ---
 

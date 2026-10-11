@@ -32,6 +32,12 @@
         </arguments>
     </type>
 
+    <type name="Aichouchm\AttributeImport\Controller\Adminhtml\Import\Preview">
+        <arguments>
+            <argument name="logger" xsi:type="object">Aichouchm\AttributeImport\Logger\Logger</argument>
+        </arguments>
+    </type>
+
     <type name="Aichouchm\AttributeImport\Controller\Adminhtml\Import\Process">
         <arguments>
             <argument name="logger" xsi:type="object">Aichouchm\AttributeImport\Logger\Logger</argument>

@@ -1,16 +1,22 @@
 <?php
+/**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ */
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Model\Attribute;
 
 use Aichouchm\AttributeImport\Model\Csv\Validator as CsvValidator;
 use Aichouchm\AttributeImport\Service\StoreResolver;
-use Magento\Eav\Api\Data\AttributeInterface;
+use Magento\Eav\Model\Entity\Attribute\AbstractAttribute;
 use Magento\Framework\App\ResourceConnection;
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Store\Model\Store;
 use Throwable;
 
 /**
- * Class OptionProcessor
+ * Writes new options, their store labels and swatches in a single transaction.
  */
 class OptionProcessor
 {
@@ -20,68 +26,82 @@ class OptionProcessor
      */
     public function __construct(
         private readonly ResourceConnection $resourceConnection,
-        private readonly StoreResolver      $storeResolver
-    ) {}
+        private readonly StoreResolver $storeResolver
+    ) {
+    }
 
     /**
-     * @param array $groups
-     * @param array $existingOptions
-     * @param int $swatchType
-     * @param AttributeInterface $attribute
-     * @return array
+     * Create every option group whose admin label does not exist yet.
+     *
+     * @param array<int,array{admin:string[],stores:array<int,string[]>}> $groups
+     * @param array<string,int> $existingOptions Lower-cased admin label => option ID
+     * @param int $swatchType One of CsvValidator::SWATCH_*
+     * @param AbstractAttribute $attribute
+     * @return array{imported:int,skipped:int,skippedValues:string[]}
+     * @throws LocalizedException
      * @throws Throwable
      */
     public function processGroups(
         array $groups,
         array $existingOptions,
         int $swatchType,
-        AttributeInterface $attribute
+        AbstractAttribute $attribute
     ): array {
-        $newOptions = [];
-        $labelRows  = [];
-        $swatchRows = [];
-        $defaultKey = null;
-        $skipped    = [];
+        $attributeId = (int) $attribute->getAttributeId();
+        $newOptions  = [];
+        $labelRows   = [];
+        $swatchRows  = [];
+        $defaultKey  = null;
+        $skipped     = [];
 
         foreach ($groups as $group) {
-            $adminRow = $group['admin'];
-            $value    = $adminRow[CsvValidator::COL_VALUE];
+            $adminRow   = $group['admin'];
+            $value      = $adminRow[CsvValidator::COL_VALUE];
+            $normalised = mb_strtolower($value, 'UTF-8');
 
-            if (array_key_exists($value, $existingOptions)) {
+            if (isset($existingOptions[$normalised])) {
                 $skipped[] = $value;
                 continue;
             }
+            // Guards against the same label appearing twice in one file.
+            $existingOptions[$normalised] = 0;
 
-            $key = 'new_' . count($newOptions);
-
+            $key = count($newOptions);
             $newOptions[$key] = [
-                'attribute_id' => $attribute->getAttributeId(),
-                'sort_order'   => (int) ($adminRow[CsvValidator::COL_SORT_ORDER] ?? 0),
+                'attribute_id' => $attributeId,
+                'sort_order'   => (int) $adminRow[CsvValidator::COL_SORT_ORDER],
             ];
 
-            if (($adminRow[CsvValidator::COL_IS_DEFAULT] ?? '0') === '1') {
+            if ($adminRow[CsvValidator::COL_IS_DEFAULT] === '1') {
                 $defaultKey = $key;
             }
 
-            $labelRows[] = ['key' => $key, 'store_id' => 0, 'value' => $value];
-
-            if ($swatchType !== CsvValidator::SWATCH_NONE) {
-                $swatchRows[] = [
-                    'key'      => $key,
-                    'store_id' => 0,
-                    'type'     => 1,
-                    'value'    => $adminRow[CsvValidator::COL_SWATCH] ?? '',
-                ];
+            $labels = [Store::DEFAULT_STORE_ID => $value];
+            foreach ($group['stores'] as $storeRow) {
+                $storeId          = $this->storeResolver->getStoreId($storeRow[CsvValidator::COL_STORE_VIEW]);
+                $labels[$storeId] = $storeRow[CsvValidator::COL_VALUE];
             }
 
-            foreach ($group['stores'] as $storeRow) {
-                $storeId     = $this->storeResolver->getStoreId($storeRow[CsvValidator::COL_STORE_VIEW]);
-                $labelRows[] = ['key' => $key, 'store_id' => $storeId, 'value' => $storeRow[CsvValidator::COL_VALUE]];
+            foreach ($labels as $storeId => $label) {
+                $labelRows[] = ['key' => $key, 'store_id' => $storeId, 'value' => $label];
+
+                if ($swatchType === CsvValidator::SWATCH_TEXT) {
+                    $swatchRows[] = ['key' => $key, 'store_id' => $storeId, 'type' => 0, 'value' => $label];
+                }
+            }
+
+            if ($swatchType === CsvValidator::SWATCH_VISUAL) {
+                $swatchRows[] = [
+                    'key'      => $key,
+                    'store_id' => Store::DEFAULT_STORE_ID,
+                    'type'     => 1,
+                    'value'    => $adminRow[CsvValidator::COL_SWATCH],
+                ];
             }
         }
 
-        if (!empty($newOptions)) {
-            $this->bulkSave($newOptions, $labelRows, $swatchRows, $defaultKey, $attribute);
+        if ($newOptions !== []) {
+            $this->bulkSave($attributeId, $newOptions, $labelRows, $swatchRows, $defaultKey);
         }
 
         return [
@@ -92,61 +112,72 @@ class OptionProcessor
     }
 
     /**
-     * @param array $newOptions
-     * @param array $labelRows
-     * @param array $swatchRows
-     * @param string|null $defaultKey
-     * @param AttributeInterface $attribute
+     * Insert options one by one (to capture IDs), then labels and swatches in bulk.
+     *
+     * @param int $attributeId
+     * @param array<int,array{attribute_id:int,sort_order:int}> $newOptions
+     * @param array<int,array{key:int,store_id:int,value:string}> $labelRows
+     * @param array<int,array{key:int,store_id:int,type:int,value:string}> $swatchRows
+     * @param int|null $defaultKey
      * @return void
      * @throws Throwable
      */
     private function bulkSave(
+        int $attributeId,
         array $newOptions,
         array $labelRows,
         array $swatchRows,
-        ?string $defaultKey,
-        AttributeInterface $attribute
+        ?int $defaultKey
     ): void {
-        $connection  = $this->resourceConnection->getConnection();
-        $optionTable = $this->resourceConnection->getTableName('eav_attribute_option');
-        $valueTable  = $this->resourceConnection->getTableName('eav_attribute_option_value');
-        $swatchTable = $this->resourceConnection->getTableName('eav_attribute_option_swatch');
+        $connection = $this->resourceConnection->getConnection();
 
         $connection->beginTransaction();
         try {
-            // Insert one row at a time to capture each lastInsertId before batching labels/swatches
-            $keyToOptionId = [];
+            $optionIds = [];
             foreach ($newOptions as $key => $optionData) {
-                $connection->insert($optionTable, $optionData);
-                $keyToOptionId[$key] = (int) $connection->lastInsertId();
+                $connection->insert($this->resourceConnection->getTableName('eav_attribute_option'), $optionData);
+                $optionIds[$key] = (int) $connection->lastInsertId();
             }
 
-            if (!empty($labelRows)) {
-                $rows = [];
-                foreach ($labelRows as $lr) {
-                    $rows[] = ['option_id' => $keyToOptionId[$lr['key']], 'store_id' => $lr['store_id'], 'value' => $lr['value']];
-                }
-                $connection->insertOnDuplicate($valueTable, $rows, ['value']);
-            }
+            $connection->insertOnDuplicate(
+                $this->resourceConnection->getTableName('eav_attribute_option_value'),
+                array_map(
+                    static fn (array $row): array => [
+                        'option_id' => $optionIds[$row['key']],
+                        'store_id'  => $row['store_id'],
+                        'value'     => $row['value'],
+                    ],
+                    $labelRows
+                ),
+                ['value']
+            );
 
-            if ($defaultKey !== null && isset($keyToOptionId[$defaultKey])) {
-                $connection->update(
-                    $this->resourceConnection->getTableName('eav_attribute'),
-                    ['default_value' => (string) $keyToOptionId[$defaultKey]],
-                    ['attribute_id = ?' => $attribute->getAttributeId()]
+            if ($swatchRows !== []) {
+                $connection->insertOnDuplicate(
+                    $this->resourceConnection->getTableName('eav_attribute_option_swatch'),
+                    array_map(
+                        static fn (array $row): array => [
+                            'option_id' => $optionIds[$row['key']],
+                            'store_id'  => $row['store_id'],
+                            'type'      => $row['type'],
+                            'value'     => $row['value'],
+                        ],
+                        $swatchRows
+                    ),
+                    ['type', 'value']
                 );
             }
 
-            if (!empty($swatchRows)) {
-                $rows = [];
-                foreach ($swatchRows as $sr) {
-                    $rows[] = ['option_id' => $keyToOptionId[$sr['key']], 'store_id' => $sr['store_id'], 'type' => $sr['type'], 'value' => $sr['value']];
-                }
-                $connection->insertOnDuplicate($swatchTable, $rows, ['type', 'value']);
+            if ($defaultKey !== null) {
+                $connection->update(
+                    $this->resourceConnection->getTableName('eav_attribute'),
+                    ['default_value' => (string) $optionIds[$defaultKey]],
+                    ['attribute_id = ?' => $attributeId]
+                );
             }
 
             $connection->commit();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $connection->rollBack();
             throw $e;
         }

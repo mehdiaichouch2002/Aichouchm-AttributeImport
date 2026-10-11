@@ -1,23 +1,27 @@
 <?php
+/**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ */
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Block\Adminhtml\Import\Form;
 
 use Aichouchm\AttributeImport\Model\Import\Source\Attributes;
+use Aichouchm\AttributeImport\Model\Upload\CsvUploadValidator;
 use Magento\Backend\Block\Template\Context;
 use Magento\Backend\Block\Widget\Form\Generic;
+use Magento\Framework\Data\Form as DataForm;
 use Magento\Framework\Data\FormFactory;
+use Magento\Framework\Exception\LocalizedException;
 use Magento\Framework\Registry;
 
 /**
- * Class Form
+ * Import settings form: attribute selector and CSV upload.
  */
 class Form extends Generic
 {
-    /**
-     * Source file field name
-     */
-    public const FIELD_NAME_SOURCE_FILE = 'import_file';
+    public const FIELD_NAME_SOURCE_FILE = CsvUploadValidator::FIELD_NAME;
 
     /**
      * @param Context $context
@@ -27,9 +31,9 @@ class Form extends Generic
      * @param array $data
      */
     public function __construct(
-        Context                     $context,
-        Registry                    $registry,
-        FormFactory                 $formFactory,
+        Context $context,
+        Registry $registry,
+        FormFactory $formFactory,
         private readonly Attributes $sourceAttributes,
         array $data = []
     ) {
@@ -37,11 +41,14 @@ class Form extends Generic
     }
 
     /**
+     * Build the form; change handlers are bound by the JS component, not inline.
+     *
      * @return $this
+     * @throws LocalizedException
      */
     protected function _prepareForm(): static
     {
-        /** @var \Magento\Framework\Data\Form $form */
+        /** @var DataForm $form */
         $form = $this->_formFactory->create([
             'data' => [
                 'id'      => 'attribute-import-form',
@@ -61,19 +68,16 @@ class Form extends Generic
             'title'    => __('Select Attribute'),
             'required' => true,
             'values'   => $this->sourceAttributes->toOptionArray(),
-            'onchange' => 'attributeImport.onAttributeChange();',
             'note'     => __('Only user-defined select/multiselect attributes are listed.'),
         ]);
 
         $fieldset->addField(self::FIELD_NAME_SOURCE_FILE, 'file', [
-            'id'       => 'import_file',
             'name'     => self::FIELD_NAME_SOURCE_FILE,
             'label'    => __('CSV File'),
             'title'    => __('CSV File'),
             'required' => true,
             'class'    => 'input-file',
-            'onchange' => 'attributeImport.onFileChange();',
-            'note'     => __('Accepted format: CSV with columns attribute_code, store_view, value, [swatch,] sort_order, is_default'),
+            'note'     => __('Columns: attribute_code, store_view, value, hex_code, sort_order, is_default'),
         ]);
 
         $form->setUseContainer(true);

@@ -1,28 +1,46 @@
 <?php
+/**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ */
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Block\Adminhtml\Import\Form;
 
 use Magento\Backend\Block\Template;
+use Magento\Framework\Serialize\Serializer\Json;
 
 /**
- * Class Before
+ * Preview/notification containers and the JS component configuration.
  */
 class Before extends Template
 {
     /**
-     * @return string
+     * @param Template\Context $context
+     * @param Json $json
+     * @param array $data
      */
-    public function getPreviewUrl(): string
-    {
-        return $this->getUrl('attributeimport/import/preview');
+    public function __construct(
+        Template\Context $context,
+        private readonly Json $json,
+        array $data = []
+    ) {
+        parent::__construct($context, $data);
     }
 
     /**
+     * JSON configuration for Aichouchm_AttributeImport/js/attribute-import.
+     *
      * @return string
      */
-    public function getProcessUrl(): string
+    public function getJsConfig(): string
     {
-        return $this->getUrl('attributeimport/import/process');
+        return (string) $this->json->serialize([
+            'Aichouchm_AttributeImport/js/attribute-import' => [
+                'previewUrl' => $this->getUrl('attributeimport/import/preview'),
+                'processUrl' => $this->getUrl('attributeimport/import/process'),
+                'logUrl'     => $this->getUrl('attributeimport/import/log'),
+            ],
+        ]);
     }
 }

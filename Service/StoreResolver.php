@@ -1,64 +1,96 @@
 <?php
+/**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ */
 declare(strict_types=1);
 
 namespace Aichouchm\AttributeImport\Service;
 
+use Magento\Framework\Exception\LocalizedException;
+use Magento\Store\Model\Store;
 use Magento\Store\Model\StoreManagerInterface;
 
 /**
- * Class StoreResolver
+ * Maps CSV store_view codes to store IDs ("default"/"admin" = global label, store 0).
  */
 class StoreResolver
 {
     public const ADMIN_STORE_CODES = ['admin', 'default'];
 
     /**
-     * @var string[]
+     * @var array<string,int>|null Lower-cased store code => store ID
      */
-    private array $storeCodes = [];
+    private ?array $storeIds = null;
 
     /**
      * @param StoreManagerInterface $storeManager
      */
     public function __construct(
         private readonly StoreManagerInterface $storeManager
-    ) {}
+    ) {
+    }
 
     /**
+     * Whether the code designates the global (admin) label.
+     *
      * @param string $storeCode
-     * @return int
+     * @return bool
      */
-    public function getStoreId(string $storeCode): int
+    public function isAdminStoreCode(string $storeCode): bool
     {
-        if (in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true)) {
-            return 0;
-        }
-        return (int) $this->storeManager->getStore($storeCode)->getId();
+        return in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true);
     }
 
     /**
-     * @return string[]
-     */
-    public function getAllStoreCodes(): array
-    {
-        if (!empty($this->storeCodes)) {
-            return $this->storeCodes;
-        }
-        foreach ($this->storeManager->getStores() as $store) {
-            $this->storeCodes[] = $store->getCode();
-        }
-        return $this->storeCodes;
-    }
-
-    /**
+     * Whether the code is the admin alias or an existing store view.
+     *
      * @param string $storeCode
      * @return bool
      */
     public function isValidStoreCode(string $storeCode): bool
     {
-        if (in_array(strtolower($storeCode), self::ADMIN_STORE_CODES, true)) {
-            return true;
+        return $this->isAdminStoreCode($storeCode)
+            || array_key_exists(strtolower($storeCode), $this->getStoreIds());
+    }
+
+    /**
+     * Resolve a store code to its ID.
+     *
+     * @param string $storeCode
+     * @return int
+     * @throws LocalizedException
+     */
+    public function getStoreId(string $storeCode): int
+    {
+        if ($this->isAdminStoreCode($storeCode)) {
+            return Store::DEFAULT_STORE_ID;
         }
-        return in_array($storeCode, $this->getAllStoreCodes(), true);
+
+        $storeIds = $this->getStoreIds();
+        $code     = strtolower($storeCode);
+
+        if (!array_key_exists($code, $storeIds)) {
+            throw new LocalizedException(__('Store view "%1" does not exist in Magento.', $storeCode));
+        }
+
+        return $storeIds[$code];
+    }
+
+    /**
+     * Store views are loaded once per request.
+     *
+     * @return array<string,int>
+     */
+    private function getStoreIds(): array
+    {
+        if ($this->storeIds === null) {
+            $this->storeIds = [];
+            foreach ($this->storeManager->getStores() as $store) {
+                $this->storeIds[strtolower((string) $store->getCode())] = (int) $store->getId();
+            }
+        }
+
+        return $this->storeIds;
     }
 }

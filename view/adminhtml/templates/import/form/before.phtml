@@ -1,136 +1,17 @@
 <?php
 /**
+ * Copyright © Mehdi Aichouch. All rights reserved.
+ * See LICENSE for license details.
+ *
  * @var \Aichouchm\AttributeImport\Block\Adminhtml\Import\Form\Before $block
- * @var \Magento\Framework\View\Helper\SecureHtmlRenderer $secureRenderer
+ * @var \Magento\Framework\Escaper $escaper
  */
-$previewUrl  = $block->getPreviewUrl();
-$processUrl  = $block->getProcessUrl();
-$serverError = $block->escapeJs(__('Server error. Please try again.'));
 ?>
-
-<div id="import-notification" class="hidden"></div>
+<div id="import-notification" class="hidden" role="alert"></div>
 <div id="preview-section">
-    <h2 id="validation-heading" class="hidden"><?= $block->escapeHtml(__('Validation Results')) ?></h2>
+    <h2 id="validation-heading" class="hidden"><?= $escaper->escapeHtml(__('Validation Results')) ?></h2>
     <div id="preview-container"></div>
 </div>
-
-<?php $js = <<<JS
-require(['jquery'], function ($) {
-    'use strict';
-
-    function esc(str) {
-        return $('<div>').text(String(str)).html();
-    }
-
-    function formatMessages(messages, skipped) {
-        var parts = Array.isArray(messages) ? messages.map(esc) : [esc(messages)];
-        if (skipped > 0) {
-            parts.push('<em>' + esc(skipped + ' option(s) skipped (already exist). See log for details.') + '</em>');
-        }
-        return parts.join('<br>');
-    }
-
-    window.attributeImport = {
-        // ── Check Data ──────────────────────────────────────────────────────
-        checkData: function () {
-            var formData = new FormData($('#attribute-import-form')[0]);
-
-            $.ajax({
-                url:          '$previewUrl',
-                type:         'POST',
-                data:         formData,
-                contentType:  false,
-                processData:  false,
-                showLoader:   true,
-                dataType:     'json',
-                success: function (response) {
-                    if (!response.success) {
-                        attributeImport.showMessage(esc(response.message || '$serverError'), 'error');
-                        return;
-                    }
-                    $('#preview-container').html(response.data);
-                    $('#validation-heading').removeClass('hidden');
-
-                    if (response.is_valid) {
-                        attributeImport.hideMessage();
-                        attributeImport.enableImport();
-                    } else {
-                        attributeImport.showMessage(esc('Validation failed. Please fix the errors shown below.'), 'error');
-                        attributeImport.resetButtons();
-                    }
-                },
-                error: function () {
-                    attributeImport.showMessage('$serverError', 'error');
-                }
-            });
-        },
-
-        // ── Submit import ───────────────────────────────────────────────────
-        submit: function () {
-            var formData = new FormData($('#attribute-import-form')[0]);
-
-            $.ajax({
-                url:          '$processUrl',
-                type:         'POST',
-                data:         formData,
-                contentType:  false,
-                processData:  false,
-                showLoader:   true,
-                dataType:     'json',
-                success: function (response) {
-                    attributeImport.resetAfterSubmit();
-
-                    if (response.success) {
-                        attributeImport.showMessage(formatMessages(response.messages, response.skipped || 0), 'success');
-                    } else {
-                        attributeImport.showMessage(formatMessages(response.messages, 0), 'error');
-                    }
-                },
-                error: function () {
-                    attributeImport.showMessage('$serverError', 'error');
-                }
-            });
-        },
-
-        // ── UI helpers ──────────────────────────────────────────────────────
-        onAttributeChange: function () { this.resetState(); },
-        onFileChange:      function () { this.resetState(); },
-
-        resetState: function () {
-            this.resetButtons();
-            $('#validation-heading').addClass('hidden');
-            $('#preview-container').html('');
-            this.hideMessage();
-        },
-
-        resetAfterSubmit: function () {
-            this.resetState();
-            $('#import_file').val('');
-            $('#attribute_code').prop('selectedIndex', 0).trigger('change');
-        },
-
-        enableImport: function () {
-            $('#import-button').removeClass('disabled');
-            $('#check-data-button').addClass('disabled');
-        },
-
-        resetButtons: function () {
-            $('#import-button').addClass('disabled');
-            $('#check-data-button').removeClass('disabled');
-        },
-
-        showMessage: function (safeHtml, type) {
-            $('#import-notification')
-                .removeClass('hidden message-error message-success')
-                .addClass('message ' + (type === 'success' ? 'message-success' : 'message-error'))
-                .html('<div>' + safeHtml + '</div>');
-        },
-
-        hideMessage: function () {
-            $('#import-notification').addClass('hidden').removeClass('message message-error message-success').html('');
-        }
-    };
-});
-JS;
-?>
-<?= /* @noEscape */ $secureRenderer->renderTag('script', [], $js, false) ?>
+<script type="text/x-magento-init">
+    {"*": <?= /* @noEscape */ $block->getJsConfig() ?>}
+</script>
